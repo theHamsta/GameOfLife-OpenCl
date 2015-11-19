@@ -13,6 +13,8 @@
 
 #define BOARD_GET_FIELD_PTR(X,Y) (&(this->m_dataHost[ ((X) + BOARD_PADDING_X) + ((Y) + BOARD_PADDING_Y) * BOARD_LINE_SKIP ]))
 
+
+
 using namespace std;
 
 Board::Board(uint widthDiv4, uint heightDiv3):
@@ -243,12 +245,18 @@ void Board::uploadToDevice()
 {
 	assert( m_bDataValidHost );
 	
+	m_queue.enqueueWriteBuffer( m_dataDevice, CL_TRUE,
+                               ZERO_OFFSET, getBufferSizeData(), m_dataHost );
+	
 	m_bDataValidDevice = true;
 }
 
 void Board::downloadFromDevice()
 {
 	assert( m_bDataValidDevice );
+	
+	m_queue.enqueueReadBuffer( m_dataDevice, CL_TRUE,
+                               ZERO_OFFSET, getBufferSizeData(), m_dataHost );
 	
 	m_bDataValidHost = true;
 }

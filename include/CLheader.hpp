@@ -1,6 +1,8 @@
 #ifndef  __CLHEADER_HPP
 #define  __CLHEADER_HPP
 
+#define ZERO_OFFSET 0
+
 #ifdef __OPENCL_VERSION__
 
 
