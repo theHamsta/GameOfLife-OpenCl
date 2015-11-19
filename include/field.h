@@ -1,8 +1,7 @@
 #ifndef FIELD_H
 #define FIELD_H
 
-#include <stdint.h>
-#include <stdbool.h>
+
 
 
 #define BACTERIA_PER_FIELD_X 4
@@ -81,8 +80,15 @@
 #define FIELD_NEIGHBOUR_TL_POS FIELD_ELEMENT_SHIFT_FOR_MASK(BACTERIA_PER_FIELD_X + 1, BACTERIA_PER_FIELD_Y + 1)
 #define FIELD_NEIGHBOUR_TR_POS FIELD_ELEMENT_SHIFT_FOR_MASK(0,BACTERIA_PER_FIELD_Y + 1)
 
+#define FIELD_CHANGED_BIT_POS 31
+#define FIELD_CHANGED_MASK (1 << FIELD_CHANGED_BIT_POS)
 
-
+#ifdef __OPENCL_VERSION__
+#define UINT32_MAX 0xFFFFFFFF
+typedef uint uint32_t;
+typedef struct { uint val; } field_t;
+#else
+#include <stdint.h>
 struct field_s 
 {
 	unsigned int right0:1;
@@ -115,7 +121,7 @@ typedef union field_u {
 	uint32_t val;
 	struct field_s bitfield;
 } field_t;
-
+#endif
 
 
 
@@ -124,16 +130,20 @@ void field_initLuts();
 
 void field_update( field_t* field );
 
+
 // from: http://stackoverflow.com/questions/109023/how-to-count-the-number-of-set-bits-in-a-32-bit-integer
-static inline uint32_t popcount(uint32_t i)
+static inline uint32_t myPopcount(uint32_t i)
 {
 	i = i - ((i >> 1) & 0x55555555);
 	i = (i & 0x33333333) + ((i >> 2) & 0x33333333);
 	return (((i + (i >> 4)) & 0x0F0F0F0F) * 0x01010101) >> 24;
 }
 
-
-static void field_updateNeighbourCount( field_t* field ) {
+#ifdef __OPENCL_VERSION__
+static inline void field_updateNeighbourCount( global field_t* field ) {
+#else
+static inline void field_updateNeighbourCount( field_t* field ) {
+#endif
 
 	field_t newField = *field;
 
@@ -141,7 +151,7 @@ static void field_updateNeighbourCount( field_t* field ) {
 		for ( int x = 0; x < BACTERIA_PER_FIELD_X; x++ ) {
 			
 			uint32_t neighbours = (field->val >> (y*FIELD_LINE_WIDTH + x)) & FIELD_NEIGHBOUR_MASK;
-			uint32_t numNeighbours = popcount(neighbours);
+			uint32_t numNeighbours = myPopcount(neighbours);
 			
 			bool bWasAlive = (field->val >> FIELD_ELEMENT_SHIFT_FOR_MASK(x+1,y+1)) & 1;
 			
@@ -155,7 +165,14 @@ static void field_updateNeighbourCount( field_t* field ) {
 			newField.val &= ~(1 << FIELD_ELEMENT_SHIFT_FOR_MASK(x+1,y+1));
 			newField.val |= bIsAlive << FIELD_ELEMENT_SHIFT_FOR_MASK(x+1,y+1);
 			
+			
+#ifdef __OPENCL_VERSION__
+			newField.val &= ~FIELD_CHANGED_MASK;
+			newField.val |= (bIsAlive != bWasAlive) << FIELD_CHANGED_BIT_POS;
+#else
 			newField.bitfield.wasChanged |= (bIsAlive != bWasAlive);
+#endif // __OPENCL_VERSION__
+			
 		}
 	}
 	*field = newField;

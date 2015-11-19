@@ -41,15 +41,19 @@ private:
 	uint m_widthDiv4;
 	uint m_heightDiv3;
 
-	
-	field_t* m_dataHost;
-	
 	bool m_bDataValidHost;
 	bool m_bDataValidDevice;
 	
-	cl::Context m_Context; 
-    cl::Device m_Device;
-    std::map<std::string, cl::Kernel> m_Kernels; 
+	// Host data
+	field_t* m_dataHost;
+	
+	// Device data
+	cl::Buffer m_dataDevice;
+	cl::Buffer m_lutDevice;
+	
+	// OpenCl stuff
+    std::map<std::string, cl::Kernel> m_kernels; 
+	cl::Context m_context; 
 	cl::Device m_device;
 	cl::CommandQueue m_queue;
 	cl::Program m_program;

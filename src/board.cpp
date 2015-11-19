@@ -1,6 +1,10 @@
 #include <board.hpp>
 #include <stdio.h>
 #include <assert.h>
+#include <vector>
+#include <sstream>
+
+#include <CLsetup.hpp>
 
 #define BOARD_PADDING_X (1)
 #define BOARD_PADDING_Y (1)
@@ -8,6 +12,8 @@
 #define BOARD_PTR_FIRST_FIELD (this->m_dataHost + BOARD_PADDING_Y * BOARD_LINE_SKIP + BOARD_PADDING_X)
 
 #define BOARD_GET_FIELD_PTR(X,Y) (&(this->m_dataHost[ ((X) + BOARD_PADDING_X) + ((Y) + BOARD_PADDING_Y) * BOARD_LINE_SKIP ]))
+
+using namespace std;
 
 Board::Board(uint widthDiv4, uint heightDiv3):
 	m_widthDiv4(widthDiv4),
@@ -40,7 +46,68 @@ void Board::init()
 
 void Board::initCl()
 {
+	// Read kernel sources
+    const SetupCL clSetup;
+	
+    const string header = clSetup.readSource("include/CLheader.hpp");
+	const string field_h = clSetup.readSource("include/field.h");
+    vector<string> kernelSources;
+    string source;
 
+    source = clSetup.readSource("kernels/updateFields.cl");
+    kernelSources.push_back(header + field_h + source);
+   
+
+
+    // Setup OpenCL
+#if defined(DEBUG_MODE)
+    cl::Platform platform = clSetup.selectPlatform();
+
+    m_context = clSetup.createContext(platform);
+    m_device = clSetup.selectDevice(m_context);
+#else
+    cl::Platform platform = clSetup.getPlatforms()[0];
+
+    mContext = clSetup.createContext(platform);
+    mDevice = clSetup.getDevices(mContext)[0];
+#endif // DEBUG_MODE
+	
+	
+    // Add compile time flags to opencl program
+    stringstream compileTimeFlags;
+	
+#if defined(USE_DOUBLE_PRECISION)
+    compileTimeFlags << " -DUSE_DOUBLE_PRECISION ";
+#endif // USE_DOUBLE_PRECISION
+
+#if defined(DEBUG_MODE)
+    compileTimeFlags << " -DDEBUG_MODE ";
+#endif // DEBUG_MODE
+
+	// Vendor specific compiler options
+	if (m_device.getInfo<CL_DEVICE_VENDOR>() == "NVIDIA Corporation") 
+    {
+        // the last two aren't NVIDIA-specific
+		compileTimeFlags << " -cl-nv-verbose -cl-fast-relaxed-math -cl-mad-enable"; 
+	}
+	
+	compileTimeFlags << " -DBOARD_WIDTH=" << m_widthDiv4 
+					<< " -DBOARD_HEIGHT=" << m_heightDiv3
+					<< " -DBOARD_PADDING_X=" << BOARD_PADDING_X
+					<< " -DBOARD_PADDING_Y=" << BOARD_PADDING_Y;
+	
+					const char *compileTimeFlagsCstr = compileTimeFlags.str().c_str();
+
+    cl::Program program = clSetup.createProgram(kernelSources, m_context,
+                                    m_device, compileTimeFlagsCstr);
+
+    m_kernels = clSetup.createKernelsMap(program);
+	
+    // Init queue
+    m_queue = cl::CommandQueue(m_context, m_device);
+
+	m_localRange = cl::NullRange;
+    m_globalRange = cl::NullRange;
 }
 
 
