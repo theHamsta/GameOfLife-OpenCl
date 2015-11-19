@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
 	Board board(6,6);
 	
 	board.fillRandomly();
+	
 	board.print();
 	
 	for(int i = 0; i < 100; i++){

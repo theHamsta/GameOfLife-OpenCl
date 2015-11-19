@@ -119,6 +119,8 @@ void Board::initCl()
 
 void Board::print()
 {
+	assert( m_bDataValidDevice || m_bDataValidHost );
+	
 	if( !m_bDataValidHost ) {
 		this->downloadFromDevice();
 	}
