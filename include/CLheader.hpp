@@ -63,7 +63,9 @@ static const int BC_PERIODIC = 3;
 #endif // USE_DOUBLE_PRECISION
 
 
+
 	
 #endif // __OPENCL_VERSION__
+
 
 #endif // __CLHEADER_HPP

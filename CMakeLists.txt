@@ -3,7 +3,7 @@ project(gameoflifecl)
 
 #Set variable
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
-set(CMAKE_CXX_FLAGS "-O3 -DDEBUG_MODE -Wall")
+set(CMAKE_CXX_FLAGS "-DDEBUG_MODE -Wall -std=c++11 -Wall")
 set(CMAKE_SHARED_LINKER_FLAGS)
 
 #Check for OpenCL
