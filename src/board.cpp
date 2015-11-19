@@ -108,6 +108,10 @@ void Board::initCl()
 
 	m_localRange = cl::NullRange;
     m_globalRange = cl::NullRange;
+	
+	
+	m_dataDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, this->getBufferSizeData());
+	m_lutDevice = cl::Buffer(m_context, CL_MEM_READ_ONLY, FIELD_3X6LINE_LUT_SIZE);
 }
 
 

@@ -124,7 +124,9 @@ typedef union field_u {
 #endif
 
 
-
+#define BITS_IN_UINT32 (32)
+#define FIELD_3X6LINE_LUT_NUM_ENTRIES (1 << (3 * (BACTERIA_PER_FIELD_X + 2/*left and right margin*/)))
+#define FIELD_3X6LINE_LUT_SIZE ((FIELD_3X6LINE_LUT_NUM_ENTRIES) / (BITS_IN_UINT32 / BACTERIA_PER_FIELD_X))
 
 void field_initLuts();
 
