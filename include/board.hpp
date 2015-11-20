@@ -34,12 +34,11 @@ public:
 	void uploadToDevice();
 	void downloadFromDevice();
 	
+	void stepDeviceOptimized();
+	
 private:
 	void init();
 	void initCl();
-
-	
-
 	
 	size_t getBufferSizeData();
 	

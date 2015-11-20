@@ -27,11 +27,10 @@ int main(int argc, char **argv) {
 	
 	for(int i = 0; i < 12; i++){
 		clearScreen();
-		board.updateFieldsDevice();
-		board.updateFieldsHost();
-		board.checkConsistency();
+	
+		board.stepDeviceOptimized();
 		
-		board.broadcastNeighboursDevice();
+		board.updateFieldsHost();
 		board.broadcastNeighboursHost();
 		board.checkConsistency();
 		

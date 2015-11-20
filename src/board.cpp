@@ -64,6 +64,9 @@ void Board::initCl()
 	
 	source = clSetup.readSource("kernels/broadcastNeighbourhoods.cl");
     kernelSources.push_back(header + field_h + source);
+	
+	source = clSetup.readSource("kernels/step.cl");
+    kernelSources.push_back(header + field_h + source);
    
 
 
@@ -102,8 +105,7 @@ void Board::initCl()
 	compileTimeFlags << " -DBOARD_WIDTH=" << m_widthDiv4 
 					<< " -DBOARD_HEIGHT=" << m_heightDiv3
 					<< " -DBOARD_PADDING_X=" << BOARD_PADDING_X
-					<< " -DBOARD_PADDING_Y=" << BOARD_PADDING_Y
-					<< " -DLOCAL_SIZE=" << m_localRange[0];
+					<< " -DBOARD_PADDING_Y=" << BOARD_PADDING_Y;
 	
 					const char *compileTimeFlagsCstr = compileTimeFlags.str().c_str();
 
@@ -206,6 +208,24 @@ void Board::stepDevice()
 	m_bDataValidDevice = true;
 }
 
+void Board::stepDeviceOptimized()
+{
+	cl::Kernel &kernel = m_kernels[ "stepDevice" ];
+	try {
+		kernel.setArg( 0, m_dataDevice );
+		kernel.setArg( 1, (m_localRange[0] + 2) * 3, NULL);
+
+		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
+									m_localRange, m_globalRange);
+
+		m_queue.enqueueBarrier();
+	} catch (cl::Error& err ) {
+		cout << "Failed to call kernel stepDevice." << endl;
+		cout << "Error \"" << getOpenClErrorString(err.err()) << "\"";
+		cout << " in Function \"" << err.what() << "\"" <<  endl;
+		exit(EXIT_FAILURE);
+	}
+}
 
 
 void Board::broadcastNeighboursHost()
