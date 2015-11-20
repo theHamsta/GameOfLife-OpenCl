@@ -26,7 +26,7 @@ public:
 	void checkConsistency();
 	
 	void updateFieldsDevice();
-	void boardcastNeighboursDevice();
+	void broadcastNeighboursDevice();
 	
 	void updateFieldsHost();
 	void broadcastNeighboursHost();

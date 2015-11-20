@@ -145,10 +145,15 @@ static inline uint32_t myPopcount(uint32_t i)
 }
 
 #ifdef __OPENCL_VERSION__
-static inline void field_updateNeighbourCount( global field_t* field ) {
+#define FIELD_GLOBAL global
+#define FIELD_LOCAL local
 #else
-static inline void field_updateNeighbourCount( field_t* field ) {
+#define FIELD_GLOBAL
+#define FIELD_LOCAL
 #endif
+
+static inline void field_updateNeighbourCount( FIELD_GLOBAL field_t* field ) {
+
 
 	field_t newField = *field;
 
@@ -171,12 +176,11 @@ static inline void field_updateNeighbourCount( field_t* field ) {
 			newField.val |= bIsAlive << FIELD_ELEMENT_SHIFT_FOR_MASK(x+1,y+1);
 			
 			
-#ifdef __OPENCL_VERSION__
-			newField.val &= ~FIELD_CHANGED_MASK;
+// #ifdef __OPENCL_VERSION__
 			newField.val |= (bIsAlive != bWasAlive) << FIELD_CHANGED_BIT_POS;
-#else
-			newField.bitfield.wasChanged |= (bIsAlive != bWasAlive);
-#endif // __OPENCL_VERSION__
+// #else
+// 			newField.bitfield.wasChanged |= (bIsAlive != bWasAlive);
+// #endif // __OPENCL_VERSION__
 			
 		}
 	}
@@ -185,7 +189,7 @@ static inline void field_updateNeighbourCount( field_t* field ) {
 
 
 
-void static field_print(field_t* field, unsigned int line)
+void static field_print( FIELD_GLOBAL field_t* field, unsigned int line)
 {
 #ifndef __OPENCL_VERSION__
 	for ( int x = BACTERIA_PER_FIELD_X - 1; x >= 0; x-- ) {
@@ -194,7 +198,7 @@ void static field_print(field_t* field, unsigned int line)
 #endif
 }
 
-void  static field_printDebug(field_t* field, int line)
+void  static field_printDebug( FIELD_GLOBAL field_t* field, int line)
 {
 #ifndef __OPENCL_VERSION__
 	for ( int x = BACTERIA_PER_FIELD_X + 2 - 1; x >= 0; x-- ) {
@@ -222,8 +226,91 @@ void static  field_printDebugAllLines(field_t* field)
 
 // bool field_has_changed ( field_t* field );
 
+#ifdef __OPENCL_VERSION__
+void static inline field_broadcastLeft( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
+{
+	// clear right area of neighbour
+	atomic_and ((global uint*)neighbour, UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_RIGHT_MASK);
+	// broadcast value
+	uint32_t val = (field->val & FIELD_ALL_ELEMENTS_LEFT_MASK) >> BACTERIA_PER_FIELD_X;
+	// set value
+	atomic_or((global uint*)neighbour, val);	
+}
 
-void static inline field_broadcastLeft( field_t* field, field_t* neighbour )
+void static inline field_broadcastTopLeft( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
+{
+	// clear right area of neighbour
+	atomic_and ((global uint*)neighbour,  UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_BOTTOM_RIGHT_MASK);
+	// broadcast value
+	uint32_t val = (field->val & FIELD_ALL_ELEMENTS_TOP_LEFT_MASK) >> (FIELD_ELEMENT_TL_POS - FIELD_NEIGHBOUR_BR_POS);
+	// set value
+	atomic_or((global uint*)neighbour, val);	
+}
+
+
+void static inline field_broadcastTop( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
+{
+	// clear right area of neighbour
+	atomic_and ((global uint*)neighbour,  UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_BOTTOM_MASK);
+	// broadcast value
+	uint32_t val = (field->val & FIELD_ALL_ELEMENTS_TOP_MASK) >> (BACTERIA_PER_FIELD_Y * FIELD_LINE_WIDTH);
+	// set value
+	atomic_or((global uint*)neighbour, val);	
+}
+
+void static inline field_broadcastTopRight( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
+{
+	// clear right area of neighbour
+	atomic_and ((global uint*)neighbour,  UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_BOTTOM_LEFT_MASK);
+	// broadcast value
+	uint32_t val = (field->val & FIELD_ALL_ELEMENTS_TOP_RIGHT_MASK) >> (FIELD_ELEMENT_TR_POS - FIELD_NEIGHBOUR_BL_POS);
+	// set value
+	atomic_or((global uint*)neighbour, val);	
+}
+
+void static inline field_broadcastRight( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
+{
+	// clear right area of neighbour
+	atomic_and ((global uint*)neighbour,  UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_LEFT_MASK);
+	// broadcast value
+	uint32_t val = (field->val & FIELD_ALL_ELEMENTS_RIGHT_MASK) << BACTERIA_PER_FIELD_X;
+	// set value
+	atomic_or((global uint*)neighbour, val);	
+}
+
+void static inline field_broadcastBottomRight(FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
+{
+	// clear right area of neighbour
+	atomic_and ((global uint*)neighbour,  UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_TOP_LEFT_MASK);
+	// broadcast value
+	uint32_t val = (field->val & FIELD_ALL_ELEMENTS_BOTTOM_RIGHT_MASK) << (-FIELD_ELEMENT_BR_POS + FIELD_NEIGHBOUR_TL_POS);
+	// set value
+	atomic_or((global uint*)neighbour, val);	
+}
+
+void static inline field_broadcastBottom( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
+{
+	// clear right area of neighbour
+	atomic_and ((global uint*)neighbour,  UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_TOP_MASK);
+	// broadcast value
+	uint32_t val = (field->val & FIELD_ALL_ELEMENTS_BOTTOM_MASK) << (BACTERIA_PER_FIELD_Y * FIELD_LINE_WIDTH);
+
+	// set value
+	atomic_or((global uint*)neighbour, val);	
+}
+
+void static inline field_broadcastBottomLeft( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
+{
+	// clear right area of neighbour
+	atomic_and ((global uint*)neighbour,  UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_TOP_RIGHT_MASK);
+	// broadcast value
+	uint32_t val = (field->val & FIELD_ALL_ELEMENTS_BOTTOM_LEFT_MASK) << (-FIELD_ELEMENT_BL_POS + FIELD_NEIGHBOUR_TR_POS);
+	// set value
+	atomic_or((global uint*)neighbour, val);	
+}
+
+#else
+void static inline field_broadcastLeft( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
 {
 	// clear right area of neighbour
 	neighbour->val &= UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_RIGHT_MASK;
@@ -233,7 +320,7 @@ void static inline field_broadcastLeft( field_t* field, field_t* neighbour )
 	neighbour->val |= val;	
 }
 
-void static inline field_broadcastTopLeft( field_t* field, field_t* neighbour )
+void static inline field_broadcastTopLeft( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
 {
 	// clear right area of neighbour
 	neighbour->val &= UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_BOTTOM_RIGHT_MASK;
@@ -244,7 +331,7 @@ void static inline field_broadcastTopLeft( field_t* field, field_t* neighbour )
 }
 
 
-void static inline field_broadcastTop( field_t* field, field_t* neighbour )
+void static inline field_broadcastTop( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
 {
 	// clear right area of neighbour
 	neighbour->val &= UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_BOTTOM_MASK;
@@ -254,7 +341,7 @@ void static inline field_broadcastTop( field_t* field, field_t* neighbour )
 	neighbour->val |= val;	
 }
 
-void static inline field_broadcastTopRight( field_t* field, field_t* neighbour )
+void static inline field_broadcastTopRight( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
 {
 	// clear right area of neighbour
 	neighbour->val &= UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_BOTTOM_LEFT_MASK;
@@ -264,7 +351,7 @@ void static inline field_broadcastTopRight( field_t* field, field_t* neighbour )
 	neighbour->val |= val;	
 }
 
-void static inline field_broadcastRight( field_t* field, field_t* neighbour )
+void static inline field_broadcastRight( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
 {
 	// clear right area of neighbour
 	neighbour->val &= UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_LEFT_MASK;
@@ -274,7 +361,7 @@ void static inline field_broadcastRight( field_t* field, field_t* neighbour )
 	neighbour->val |= val;	
 }
 
-void static inline field_broadcastBottomRight( field_t* field, field_t* neighbour )
+void static inline field_broadcastBottomRight(FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
 {
 	// clear right area of neighbour
 	neighbour->val &= UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_TOP_LEFT_MASK;
@@ -284,7 +371,7 @@ void static inline field_broadcastBottomRight( field_t* field, field_t* neighbou
 	neighbour->val |= val;	
 }
 
-void static inline field_broadcastBottom( field_t* field, field_t* neighbour )
+void static inline field_broadcastBottom( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
 {
 	// clear right area of neighbour
 	neighbour->val &= UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_TOP_MASK;
@@ -295,7 +382,7 @@ void static inline field_broadcastBottom( field_t* field, field_t* neighbour )
 	neighbour->val |= val;	
 }
 
-void static inline field_broadcastBottomLeft( field_t* field, field_t* neighbour )
+void static inline field_broadcastBottomLeft( FIELD_GLOBAL field_t* field, FIELD_GLOBAL field_t* neighbour )
 {
 	// clear right area of neighbour
 	neighbour->val &= UINT32_MAX & ~FIELD_ALL_NEIGHBOURS_TOP_RIGHT_MASK;
@@ -304,5 +391,7 @@ void static inline field_broadcastBottomLeft( field_t* field, field_t* neighbour
 	// set value
 	neighbour->val |= val;	
 }
+#endif
+
 
 #endif // FIELD_H

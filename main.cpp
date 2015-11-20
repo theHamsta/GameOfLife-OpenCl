@@ -7,7 +7,7 @@
 using namespace std;
 
 void clearScreen() {
-	printf("\e[1;1H\e[2J");
+// 	printf("\e[1;1H\e[2J");
 }
 
 
@@ -16,16 +16,30 @@ int main(int argc, char **argv) {
     
 	srand(2);
 	
-	Board board(6,6);
+	Board board(6,2);
 	
 	board.fillRandomly();
+	board.uploadToDevice();
+
+// 	board.print();
+// 	board.debugPrintDeviceData();
 // 	board.print();
 	
-	for(int i = 0; i < 1; i++){
+	for(int i = 0; i < 12; i++){
 		clearScreen();
-		board.uploadToDevice();
 		board.updateFieldsDevice();
 		board.updateFieldsHost();
+		board.checkConsistency();
+		
+		board.broadcastNeighboursDevice();
+		board.broadcastNeighboursHost();
+		board.checkConsistency();
+		
+		board.print();
+		board.debugPrintDeviceData();
+
+		
+// 
 
 // 		board.print();
 // 		board.debugPrintDeviceData();

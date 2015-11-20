@@ -62,7 +62,7 @@ void Board::initCl()
     source = clSetup.readSource("kernels/updateFields.cl");
 	kernelSources.push_back(header + field_h + source);
 	
-	source = clSetup.readSource("kernels/broadcastNeighbours.cl");
+	source = clSetup.readSource("kernels/broadcastNeighbourhoods.cl");
     kernelSources.push_back(header + field_h + source);
    
 
@@ -102,7 +102,8 @@ void Board::initCl()
 	compileTimeFlags << " -DBOARD_WIDTH=" << m_widthDiv4 
 					<< " -DBOARD_HEIGHT=" << m_heightDiv3
 					<< " -DBOARD_PADDING_X=" << BOARD_PADDING_X
-					<< " -DBOARD_PADDING_Y=" << BOARD_PADDING_Y;
+					<< " -DBOARD_PADDING_Y=" << BOARD_PADDING_Y
+					<< " -DLOCAL_SIZE=" << m_localRange[0];
 	
 					const char *compileTimeFlagsCstr = compileTimeFlags.str().c_str();
 
@@ -143,9 +144,9 @@ void Board::print()
 {
 	assert( m_bDataValidDevice || m_bDataValidHost );
 	
-	if( !m_bDataValidHost ) {
-		this->downloadFromDevice();
-	}
+// 	if( !m_bDataValidHost ) {
+// 		this->downloadFromDevice();
+// 	}
 	
 	for ( unsigned int y = 0; y < m_heightDiv3; y++ ) {
 		for ( int l = BACTERIA_PER_FIELD_Y - 1; l >= 0; l-- ) {
@@ -164,9 +165,26 @@ void Board::print()
 
 void Board::debugPrintDeviceData()
 {
-	m_bDataValidDevice = true;
-	m_bDataValidHost = false;
-	this->print();
+	field_t* controllBuffer = new field_t[getBufferSizeData() / sizeof(field_t)];
+	
+	m_queue.enqueueReadBuffer( m_dataDevice, CL_TRUE,
+                               ZERO_OFFSET, getBufferSizeData(), controllBuffer );
+	
+	for ( unsigned int y = 0; y < m_heightDiv3; y++ ) {
+		for ( int l = BACTERIA_PER_FIELD_Y - 1; l >= 0; l-- ) {
+			for ( unsigned int x = 0; x < m_widthDiv4; x++ ) {
+
+				field_print(controllBuffer + (x+1) + (y+1) * (m_widthDiv4 + 2), l);
+
+			}
+			
+			printf("\n");
+		}
+
+	}
+	printf("\n");
+	
+	delete controllBuffer;
 }
 
 
@@ -178,6 +196,16 @@ void Board::stepHost()
 	m_bDataValidHost = true;
 	m_bDataValidDevice = false;
 }
+
+void Board::stepDevice()
+{
+	this->updateFieldsDevice();
+	this->broadcastNeighboursDevice();
+	
+	m_bDataValidHost = false;
+	m_bDataValidDevice = true;
+}
+
 
 
 void Board::broadcastNeighboursHost()
@@ -248,9 +276,9 @@ void Board::updateFieldsDevice()
 	}
 }
 
-void Board::boardcastNeighboursDevice()
+void Board::broadcastNeighboursDevice()
 {
-	cl::Kernel &kernel = m_kernels[ "broadcastNeighboursDevice" ];
+	cl::Kernel &kernel = m_kernels[ "broadcastNeighbourhoodsDevice" ];
 	try {
 		kernel.setArg( 0, m_dataDevice );
 
@@ -258,7 +286,7 @@ void Board::boardcastNeighboursDevice()
 									m_localRange, m_globalRange);
 		m_queue.enqueueBarrier();
 	} catch (cl::Error& err ) {
-		cout << "Failed to call kernel broadcastNeighboursDevice." << endl;
+		cout << "Failed to call kernel broadcastNeighbourhoodsDevice." << endl;
 		cout << "Error \"" << getOpenClErrorString(err.err()) << "\"";
 		cout << " in Function \"" << err.what() << "\"" <<  endl;
 		exit(EXIT_FAILURE);
@@ -292,6 +320,7 @@ void Board::fillRandomly()
 			current++;
 			below++;
 			
+			FIELD_UNSET_WAS_CHANGED(*current);
 		}
 		above += 2 * BOARD_PADDING_X;
 		current += 2 * BOARD_PADDING_X;
