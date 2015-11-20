@@ -60,6 +60,9 @@ void Board::initCl()
     string source;
 
     source = clSetup.readSource("kernels/updateFields.cl");
+	kernelSources.push_back(header + field_h + source);
+	
+	source = clSetup.readSource("kernels/broadcastNeighbours.cl");
     kernelSources.push_back(header + field_h + source);
    
 
