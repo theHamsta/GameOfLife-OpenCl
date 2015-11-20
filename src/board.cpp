@@ -142,7 +142,7 @@ void Board::initCl()
 }
 
 
-void Board::print()
+void Board::print(bool bWithNeighbourBits)
 {
 	assert( m_bDataValidDevice || m_bDataValidHost );
 	
@@ -151,10 +151,14 @@ void Board::print()
 // 	}
 	
 	for ( unsigned int y = 0; y < m_heightDiv3; y++ ) {
-		for ( int l = BACTERIA_PER_FIELD_Y - 1; l >= 0; l-- ) {
+		for ( int l = BACTERIA_PER_FIELD_Y  + (bWithNeighbourBits ? +1 : - 1); l >= 0; l-- ) {
 			for ( unsigned int x = 0; x < m_widthDiv4; x++ ) {
 
-				field_print(BOARD_GET_FIELD_PTR(x,y), l);
+				if(bWithNeighbourBits) {
+					field_printDebug(m_dataHost + (x+1) + (y+1) * (m_widthDiv4 + 2), l);
+				} else {
+					field_print(m_dataHost+ (x+1) + (y+1) * (m_widthDiv4 + 2), l);
+				}
 
 			}
 			
@@ -165,7 +169,7 @@ void Board::print()
 	printf("\n");
 }
 
-void Board::debugPrintDeviceData()
+void Board::debugPrintDeviceData(bool bWithNeighbourBits)
 {
 	field_t* controllBuffer = new field_t[getBufferSizeData() / sizeof(field_t)];
 	
@@ -173,11 +177,14 @@ void Board::debugPrintDeviceData()
                                ZERO_OFFSET, getBufferSizeData(), controllBuffer );
 	
 	for ( unsigned int y = 0; y < m_heightDiv3; y++ ) {
-		for ( int l = BACTERIA_PER_FIELD_Y - 1; l >= 0; l-- ) {
+		for ( int l = BACTERIA_PER_FIELD_Y + (bWithNeighbourBits ? +1 : - 1); l >= 0; l-- ) {
 			for ( unsigned int x = 0; x < m_widthDiv4; x++ ) {
-
-				field_print(controllBuffer + (x+1) + (y+1) * (m_widthDiv4 + 2), l);
-
+				
+				if(bWithNeighbourBits) {
+					field_printDebug(controllBuffer + (x+1) + (y+1) * (m_widthDiv4 + 2), l);
+				} else {
+					field_print(controllBuffer + (x+1) + (y+1) * (m_widthDiv4 + 2), l);
+				}
 			}
 			
 			printf("\n");

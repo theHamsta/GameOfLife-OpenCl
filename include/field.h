@@ -190,6 +190,7 @@ static inline void field_updateNeighbourCount( FIELD_GLOBAL field_t* field ) {
 static inline field_t field_getUpdatedFieldNeighbourCount( field_t field ) {
 
 
+
 	field_t newField = field;
 
 	for ( int y = 0; y < BACTERIA_PER_FIELD_Y; y++ ) {
@@ -212,7 +213,7 @@ static inline field_t field_getUpdatedFieldNeighbourCount( field_t field ) {
 			
 			
 // #ifdef __OPENCL_VERSION__
-// 			newField.val |= (bIsAlive != bWasAlive) << FIELD_CHANGED_BIT_POS;
+// // 			newField.val |= (bIsAlive != bWasAlive) << FIELD_CHANGED_BIT_POS;
 // #else
 // 			newField.bitfield.wasChanged |= (bIsAlive != bWasAlive);
 // #endif // __OPENCL_VERSION__
@@ -233,9 +234,9 @@ void static field_print( FIELD_GLOBAL field_t* field, unsigned int line)
 #endif
 }
 
-void  static field_printDebug( FIELD_GLOBAL field_t* field, int line)
+void  static field_printDebug( field_t* field, int line)
 {
-#ifndef __OPENCL_VERSION__
+// #ifndef __OPENCL_VERSION__
 	for ( int x = BACTERIA_PER_FIELD_X + 2 - 1; x >= 0; x-- ) {
 		
 
@@ -246,18 +247,19 @@ void  static field_printDebug( FIELD_GLOBAL field_t* field, int line)
 		}
 		
 	}
-#endif
+// #endif
 }
 
 void static  field_printDebugAllLines(field_t* field)
 {
-#ifndef __OPENCL_VERSION__
+// #ifndef __OPENCL_VERSION__
 	for( int i = BACTERIA_PER_FIELD_Y + 2 - 1; i >= 0; i-- ) {
 		field_printDebug(field, i);
 		printf("\n");
 	}
-#endif
+// #endif
 }
+
 
 // bool field_has_changed ( field_t* field );
 

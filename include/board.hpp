@@ -21,8 +21,8 @@ public:
 	void fillRandomly();
 	void stepDevice();
 	void stepHost();
-	void print();
-	void debugPrintDeviceData();
+	void print(bool bWithNeighbourBits);
+	void debugPrintDeviceData(bool bWithNeighbourBits);
 	void checkConsistency();
 	
 	void updateFieldsDevice();

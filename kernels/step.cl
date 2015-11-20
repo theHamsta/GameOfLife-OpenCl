@@ -48,9 +48,9 @@ kernel void stepDevice (
 		
 		// calculate the bits that need to be changed in the current field
 		if ( globalId < BOARD_WIDTH ) {
-			field_t oldField = buffer[BOARD_GET_FIELD_IDX( globalId, y + 1 )];
+			field_t oldField = buffer[BOARD_GET_FIELD_IDX( globalId, y )];
 			field_t newField = field_getUpdatedFieldNeighbourCount( oldField );
-			fieldDiff = oldField.val ^ newField.val;
+			fieldDiff = (oldField.val ^ newField.val);
 			cur[ 1 + localId ].val = fieldDiff;
 			
 			if( localId == 0 ) {
@@ -62,7 +62,7 @@ kernel void stepDevice (
 		// if something changed, propagate these changes
 		if ( fieldDiff && globalId < BOARD_WIDTH ) {
 			
-			field_broadcastDiffLeft			(fieldDiff, &cur[ 1 +  localId - 1 ]);
+			field_broadcastDiffLeft			(fieldDiff, &cur[ 1 + localId - 1 ]);
 			field_broadcastDiffTopLeft		(fieldDiff, &abv[ 1 + localId - 1 ]);
 			field_broadcastDiffTop			(fieldDiff, &abv[ 1 + localId + 0 ]);
 			field_broadcastDiffTopRight		(fieldDiff, &abv[ 1 + localId + 1 ]);
@@ -87,5 +87,20 @@ kernel void stepDevice (
 			atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( globalId + 1, y - 1 ) , abv[ LOCAL_SIZE + 1 ].val);
 		}
 	}
+	
+	// sync and save changes to global memory
+	barrier(CLK_LOCAL_MEM_FENCE);
+	if ( globalId < BOARD_WIDTH && cur[ 1 + localId ].val ) {
+		atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( globalId, BOARD_HEIGHT - 1 ) , cur[ 1 + localId ].val);
+	}
+	
+	if ( localId == 0 ) {
+		atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( globalId - 1, BOARD_HEIGHT - 1 ) , cur[ 0 ].val);
+	}
+	if ( localId == LOCAL_SIZE - 1 && globalId < BOARD_WIDTH ) {
+		atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( globalId + 1, BOARD_HEIGHT - 1) , cur[ LOCAL_SIZE + 1 ].val);
+	}
+	
+	
 }
 	
