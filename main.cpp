@@ -19,13 +19,16 @@ int main(int argc, char **argv) {
 	Board board(6,6);
 	
 	board.fillRandomly();
+// 	board.print();
 	
-	board.print();
-	
-	for(int i = 0; i < 100; i++){
+	for(int i = 0; i < 1; i++){
 		clearScreen();
-		board.stepHost();
-		board.print();
+		board.uploadToDevice();
+		board.updateFieldsDevice();
+		board.updateFieldsHost();
+
+// 		board.print();
+// 		board.debugPrintDeviceData();
 		this_thread::sleep_for(chrono::milliseconds(100));
 	}
 	

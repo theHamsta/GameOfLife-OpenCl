@@ -4,7 +4,10 @@
 #include <vector>
 #include <sstream>
 
-#include <CLsetup.hpp>
+#include "CLsetup.hpp"
+#include "opencl_errorcodes.hpp"
+
+
 
 #define BOARD_PADDING_X (1)
 #define BOARD_PADDING_Y (1)
@@ -105,6 +108,7 @@ void Board::initCl()
 
     m_kernels = clSetup.createKernelsMap(program);
 	
+	
     // Init queue
     m_queue = cl::CommandQueue(m_context, m_device);
 
@@ -114,6 +118,21 @@ void Board::initCl()
 	
 	m_dataDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, this->getBufferSizeData());
 	m_lutDevice = cl::Buffer(m_context, CL_MEM_READ_ONLY, FIELD_3X6LINE_LUT_SIZE);
+
+	// work group sizes
+	
+	uint localSize = m_kernels.begin()->second.getWorkGroupInfo<CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE>(m_device);
+	
+	
+	m_localRange = cl::NDRange(
+	localSize,
+	1,
+	1);
+	
+	m_globalRange = cl::NDRange( ((m_widthDiv4 / localSize) + 1) * localSize, 1, 1 );
+	
+	cout << "Local workgroup size: " << m_localRange[0] << endl;
+	cout << "Global workgroup size: " << m_globalRange[0] << endl;
 }
 
 
@@ -139,6 +158,14 @@ void Board::print()
 	}
 	printf("\n");
 }
+
+void Board::debugPrintDeviceData()
+{
+	m_bDataValidDevice = true;
+	m_bDataValidHost = false;
+	this->print();
+}
+
 
 void Board::stepHost()
 {
@@ -196,6 +223,45 @@ void Board::updateFieldsHost()
 		}
 	}
 }
+
+void Board::updateFieldsDevice()
+{
+// 	if( !m_bDataValidDevice ) {
+// 		this->uploadToDevice();
+// 	}
+	
+	cl::Kernel &kernel = m_kernels[ "updateFieldsDevice" ];
+	try {
+		kernel.setArg( 0, m_dataDevice );
+
+		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
+									m_localRange, m_globalRange);
+		m_queue.enqueueBarrier();
+	} catch (cl::Error& err ) {
+		cout << "Failed to call kernel updateFieldsDevice." << endl;
+		cout << "Error \"" << getOpenClErrorString(err.err()) << "\"";
+		cout << " in Function \"" << err.what() << "\"" <<  endl;
+		exit(EXIT_FAILURE);
+	}
+}
+
+void Board::boardcastNeighboursDevice()
+{
+	cl::Kernel &kernel = m_kernels[ "broadcastNeighboursDevice" ];
+	try {
+		kernel.setArg( 0, m_dataDevice );
+
+		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
+									m_localRange, m_globalRange);
+		m_queue.enqueueBarrier();
+	} catch (cl::Error& err ) {
+		cout << "Failed to call kernel broadcastNeighboursDevice." << endl;
+		cout << "Error \"" << getOpenClErrorString(err.err()) << "\"";
+		cout << " in Function \"" << err.what() << "\"" <<  endl;
+		exit(EXIT_FAILURE);
+	}
+}
+
 
 
 void Board::fillRandomly()
@@ -262,4 +328,19 @@ void Board::downloadFromDevice()
 	
 	m_bDataValidHost = true;
 }
+
+void Board::checkConsistency()
+{
+	field_t* controllBuffer = new field_t[getBufferSizeData() / sizeof(field_t)];
+	
+	m_queue.enqueueReadBuffer( m_dataDevice, CL_TRUE,
+                               ZERO_OFFSET, getBufferSizeData(), controllBuffer );
+	
+	for( uint i = 0; i < getBufferSizeData() / sizeof(field_t); i++ ){
+		assert(controllBuffer[i].val == m_dataHost[i].val);
+	}
+	
+	delete controllBuffer;
+}
+
 

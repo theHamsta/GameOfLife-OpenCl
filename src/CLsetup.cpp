@@ -323,8 +323,12 @@ SetupCL::createKernelsMap(cl::Program &program) const
     for (vector<cl::Kernel>::const_iterator cit = kernels.begin();
             cit != kernels.end(); ++cit)
     {
-        const string kernelName = cit->getInfo<CL_KERNEL_FUNCTION_NAME>();
-
+        string kernelName = cit->getInfo<CL_KERNEL_FUNCTION_NAME>();
+		
+		// Intel version appends random \0 on std string... wtf??
+		if ( kernelName[kernelName.length() - 1 ] == '\0' ) {
+			kernelName.pop_back();
+		}
         ret[kernelName] = *cit;
     }
 

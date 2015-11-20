@@ -2,12 +2,12 @@
 #define BOARD_HPP
 
 #include "CLheader.hpp"
-#include "field.h"
+
 
 #include <map>
 #include <string>
 
-
+#include "field.h"
 
 
 
@@ -19,21 +19,27 @@ public:
 	
 	void clear();
 	void fillRandomly();
-	void step();
+	void stepDevice();
 	void stepHost();
 	void print();
+	void debugPrintDeviceData();
+	void checkConsistency();
+	
+	void updateFieldsDevice();
+	void boardcastNeighboursDevice();
+	
+	void updateFieldsHost();
+	void broadcastNeighboursHost();
+	
+	void uploadToDevice();
+	void downloadFromDevice();
 	
 private:
 	void init();
 	void initCl();
-	void uploadToDevice();
-	void downloadFromDevice();
+
 	
-	void updateFields();
-	void boardcastNeighbours();
-	
-	void updateFieldsHost();
-	void broadcastNeighboursHost();
+
 	
 	size_t getBufferSizeData();
 	

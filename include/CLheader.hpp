@@ -2,6 +2,7 @@
 #define  __CLHEADER_HPP
 
 #define ZERO_OFFSET 0
+#define ZERO_OFFSET_RANGE (cl::NullRange)
 
 #ifdef __OPENCL_VERSION__
 
