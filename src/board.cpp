@@ -213,7 +213,7 @@ void Board::stepDeviceOptimized()
 	cl::Kernel &kernel = m_kernels[ "stepDevice" ];
 	try {
 		kernel.setArg( 0, m_dataDevice );
-		kernel.setArg( 1, (m_localRange[0] + 2) * 3, NULL);
+		kernel.setArg( 1, (m_localRange[0] + 2) * 3 * sizeof(field_t), NULL);
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
 									m_localRange, m_globalRange);

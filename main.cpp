@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
 		
 		board.updateFieldsHost();
 		board.broadcastNeighboursHost();
-		board.checkConsistency();
+// 		board.checkConsistency();
 		
 		board.print();
 		board.debugPrintDeviceData();
