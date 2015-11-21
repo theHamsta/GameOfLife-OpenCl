@@ -5,6 +5,7 @@
 #define SHARED_MEM_SIZE  (3 * ( get_local_size(0) + 2))
 
 void inline memClear( local field_t* mem, uint memElements ){
+	barrier(CLK_LOCAL_MEM_FENCE);
 	for ( uint idx = get_local_id(0); idx < memElements; idx += LOCAL_SIZE ) {
 		mem[idx].val = 0;
 	}
@@ -22,7 +23,8 @@ void inline rotateSharedMemPointers( local field_t** a, local field_t** b, local
 kernel void stepDevice (
 	global field_t* buffer,
 	global field_t* overlappingRegions, // between global work groups
-	local field_t* sharedMem
+	local field_t* sharedMem,
+	local field_t* verticalOverlappingRegions
 )
 {
 	
@@ -39,7 +41,7 @@ kernel void stepDevice (
 	local field_t* blw = cur + (LOCAL_SIZE + 2);
 	
 
-	memClear( sharedMem, SHARED_MEM_SIZE );
+			
 	
 	uint blockHeight = (BOARD_HEIGHT - 1) / numGlobalLocalWorkGroups + 1;
 	uint y_start = localWorkGroupId * blockHeight;
@@ -49,6 +51,7 @@ kernel void stepDevice (
 	}
 	
 	for ( uint x = localId; x < ((BOARD_WIDTH - 1) / LOCAL_SIZE + 1) * LOCAL_SIZE /* ensure that warps do not diverge or else sync is impossible!!!*/; x += LOCAL_SIZE ) {
+		memClear( sharedMem, SHARED_MEM_SIZE );
 		for ( uint y = y_start; y < y_end; y++ ) {
 
 			rotateSharedMemPointers( &abv, &cur, &blw );
@@ -59,6 +62,7 @@ kernel void stepDevice (
 			
 			// calculate the bits that need to be changed in the current field
 			if ( x < BOARD_WIDTH ) {
+				
 				field_t oldField = buffer[BOARD_GET_FIELD_IDX( x, y )];
 				field_t newField = field_getUpdatedFieldNeighbourCount( oldField );
 				fieldDiff = (oldField.val ^ newField.val);
@@ -83,20 +87,32 @@ kernel void stepDevice (
 				field_broadcastDiffBottomLeft	(fieldDiff, &blw[ 1 + localId - 1 ]);
 				
 			}
-			
+
+				
 
 			// sync and save changes to global memory
 			barrier(CLK_LOCAL_MEM_FENCE);
+// 								if( x == 1 ) {
+// 					field_t go = abv[ 1 + localId ];
+// 					field_printDebugAllLines(&go);
+// 					go = cur[ 1 + localId ];
+// 					field_printDebugAllLines(&go);
+// 					go = blw[ 1 + localId ];
+// 					field_printDebugAllLines(&go);
+// 					printf("\n");
+// 				}
 			if ( y != 0 && x < BOARD_WIDTH && abv[ 1 + localId ].val ) {
 				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x, y - 1 ) , abv[ 1 + localId ].val);
 			}
+	
+
 			
 			if ( localId == 0 && abv[ 0 ].val) {
 				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x - 1, y - 1 ) , abv[ 0 ].val);
 			}
-			if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH && abv[ LOCAL_SIZE + 1 ].val) {
-				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x + 1, y - 1 ) , abv[ LOCAL_SIZE + 1 ].val);
-			}
+// 			if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH && abv[ LOCAL_SIZE + 1 ].val) {
+// 				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x + 1, y - 1 ) , abv[ LOCAL_SIZE + 1 ].val);
+// 			}
 		}
 
 	

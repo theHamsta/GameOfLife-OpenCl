@@ -14,18 +14,18 @@ void clearScreen() {
 
 int main(int argc, char **argv) {
     
-	srand(3);
+	srand(2);
 	
-	Board board(5,7);
+	Board board(3,3);
 	
 	board.fillRandomly();
 	board.uploadToDevice();
 
 	board.print(false);
-	board.debugPrintDeviceData(false);
+	board.debugPrintDeviceData(true);
 // 	board.print();
 	
-	for(int i = 0; i < 50; i++){
+	for(int i = 0; i < 1; i++){
 		clearScreen();
 	
 		board.stepDeviceOptimized();

@@ -126,15 +126,13 @@ void Board::initCl()
 
 	// work group sizes
 	
-	uint localSize = m_kernels.begin()->second.getWorkGroupInfo<CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE>(m_device);
+	uint localSize = 2;// m_kernels.begin()->second.getWorkGroupInfo<CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE>(m_device);
 	
 	
-	m_localRange = cl::NDRange(
-	localSize,
-	1,
-	1);
+	m_localRange = cl::NDRange(localSize);
 	
-	m_globalRange = cl::NDRange( ((m_widthDiv4 / localSize) + 1) * localSize, 1, 1 );
+// 	m_globalRange = cl::NDRange( ((m_widthDiv4 / localSize) + 1) * localSize );
+	m_globalRange = cl::NDRange( 1 * localSize );
 	
 	cout << "Local workgroup size: " << m_localRange[0] << endl;
 	cout << "Global workgroup size: " << m_globalRange[0] << endl;
@@ -223,12 +221,15 @@ void Board::stepDeviceOptimized()
 {
 	cl::Kernel &kernel = m_kernels[ "stepDevice" ];
 	try {
+		uint blockHeight = (m_heightDiv3 - 1) / (m_globalRange[0] / m_localRange[0]) + 1;
+		
 		kernel.setArg( 0, m_dataDevice );
 		kernel.setArg( 1, m_dataOverlappingRegionsDevice);
 		kernel.setArg( 2, (m_localRange[0] + 2) * 3 * sizeof(field_t), NULL);
+		kernel.setArg( 3, blockHeight * sizeof(field_t) , NULL);
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
-									m_localRange, m_globalRange);
+									m_globalRange, m_localRange );
 
 		fixOverlappingRegionsDevice();
 		m_queue.enqueueBarrier();
@@ -248,7 +249,7 @@ void Board::fixOverlappingRegionsDevice()
 		kernel.setArg( 1, m_dataOverlappingRegionsDevice);
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
-									m_localRange, m_globalRange);
+									m_globalRange, m_localRange );
 
 	} catch (cl::Error& err ) {
 		cout << "Failed to call kernel fixOverlappingRegions." << endl;
@@ -318,7 +319,7 @@ void Board::updateFieldsDevice()
 		kernel.setArg( 0, m_dataDevice );
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
-									m_localRange, m_globalRange);
+									m_globalRange, m_localRange );
 		m_queue.enqueueBarrier();
 	} catch (cl::Error& err ) {
 		cout << "Failed to call kernel updateFieldsDevice." << endl;
@@ -335,7 +336,7 @@ void Board::broadcastNeighboursDevice()
 		kernel.setArg( 0, m_dataDevice );
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
-									m_localRange, m_globalRange);
+									m_globalRange, m_localRange );
 		m_queue.enqueueBarrier();
 	} catch (cl::Error& err ) {
 		cout << "Failed to call kernel broadcastNeighbourhoodsDevice." << endl;
