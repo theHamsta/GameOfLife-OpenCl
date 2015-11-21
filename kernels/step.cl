@@ -21,6 +21,7 @@ void inline rotateSharedMemPointers( local field_t** a, local field_t** b, local
 
 kernel void stepDevice (
 	global field_t* buffer,
+	global field_t* overlappingRegions, // between global work groups
 	local field_t* sharedMem
 )
 {
@@ -28,6 +29,8 @@ kernel void stepDevice (
 	
 	uint globalId = get_global_id(0);
 	uint localId = get_local_id(0);
+	uint localWorkGroupId = globalId / LOCAL_SIZE;
+	uint numGlobalLocalWorkGroups = get_global_size(0) / LOCAL_SIZE;
 	
 // 	local field_t sharedMem[ 3 * ( LOCAL_SIZE + 2) ];
 	
@@ -38,71 +41,79 @@ kernel void stepDevice (
 
 	memClear( sharedMem, SHARED_MEM_SIZE );
 	
-
+	uint blockHeight = (BOARD_HEIGHT - 1) / numGlobalLocalWorkGroups + 1;
+	uint y_start = localWorkGroupId * blockHeight;
+	uint y_end = (localWorkGroupId + 1) * blockHeight;
+	if ( y_end > BOARD_HEIGHT ) {
+		y_end = BOARD_HEIGHT;
+	}
 	
-	for ( uint y = 0; y < BOARD_HEIGHT; y++ ) {
+	for ( uint x = localId; x < ((BOARD_WIDTH - 1) / LOCAL_SIZE + 1) * LOCAL_SIZE /* ensure that warps do not diverge or else sync is impossible!!!*/; x += LOCAL_SIZE ) {
+		for ( uint y = y_start; y < y_end; y++ ) {
 
-		rotateSharedMemPointers( &abv, &cur, &blw );
-		
-		uint fieldDiff;
-		
-		memClear( blw, LOCAL_SIZE + 2 );
-		
-		// calculate the bits that need to be changed in the current field
-		if ( globalId < BOARD_WIDTH ) {
-			field_t oldField = buffer[BOARD_GET_FIELD_IDX( globalId, y )];
-			field_t newField = field_getUpdatedFieldNeighbourCount( oldField );
-			fieldDiff = (oldField.val ^ newField.val);
-			atomic_or(&cur[ 1 + localId ].val, fieldDiff);
+			rotateSharedMemPointers( &abv, &cur, &blw );
 			
-			if( localId == 0 ) {
-				blw[ 0 ].val = 0;
-				blw[ 1 + LOCAL_SIZE ].val = 0;
+			uint fieldDiff;
+			
+			memClear( blw, LOCAL_SIZE + 2 );
+			
+			// calculate the bits that need to be changed in the current field
+			if ( x < BOARD_WIDTH ) {
+				field_t oldField = buffer[BOARD_GET_FIELD_IDX( x, y )];
+				field_t newField = field_getUpdatedFieldNeighbourCount( oldField );
+				fieldDiff = (oldField.val ^ newField.val);
+				atomic_or(&cur[ 1 + localId ].val, fieldDiff);
+				
+				if( localId == 0 ) {
+					blw[ 0 ].val = 0;
+					blw[ 1 + LOCAL_SIZE ].val = 0;
+				}
+			}
+
+			// if something changed, propagate these changes
+			if ( fieldDiff && x < BOARD_WIDTH ) {
+				
+				field_broadcastDiffLeft			(fieldDiff, &cur[ 1 + localId - 1 ]);
+				field_broadcastDiffTopLeft		(fieldDiff, &abv[ 1 + localId - 1 ]);
+				field_broadcastDiffTop			(fieldDiff, &abv[ 1 + localId + 0 ]);
+				field_broadcastDiffTopRight		(fieldDiff, &abv[ 1 + localId + 1 ]);
+				field_broadcastDiffRight		(fieldDiff, &cur[ 1 + localId + 1 ]);
+				field_broadcastDiffBottomRight	(fieldDiff, &blw[ 1 + localId + 1 ]);
+				field_broadcastDiffBottom		(fieldDiff, &blw[ 1 + localId + 0 ]);
+				field_broadcastDiffBottomLeft	(fieldDiff, &blw[ 1 + localId - 1 ]);
+				
+			}
+			
+
+			// sync and save changes to global memory
+			barrier(CLK_LOCAL_MEM_FENCE);
+			if ( y != 0 && x < BOARD_WIDTH && abv[ 1 + localId ].val ) {
+				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x, y - 1 ) , abv[ 1 + localId ].val);
+			}
+			
+			if ( localId == 0 && abv[ 0 ].val) {
+				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x - 1, y - 1 ) , abv[ 0 ].val);
+			}
+			if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH && abv[ LOCAL_SIZE + 1 ].val) {
+				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x + 1, y - 1 ) , abv[ LOCAL_SIZE + 1 ].val);
 			}
 		}
 
-		// if something changed, propagate these changes
-		if ( fieldDiff && globalId < BOARD_WIDTH ) {
-			
-			field_broadcastDiffLeft			(fieldDiff, &cur[ 1 + localId - 1 ]);
-			field_broadcastDiffTopLeft		(fieldDiff, &abv[ 1 + localId - 1 ]);
-			field_broadcastDiffTop			(fieldDiff, &abv[ 1 + localId + 0 ]);
-			field_broadcastDiffTopRight		(fieldDiff, &abv[ 1 + localId + 1 ]);
-			field_broadcastDiffRight		(fieldDiff, &cur[ 1 + localId + 1 ]);
-			field_broadcastDiffBottomRight	(fieldDiff, &blw[ 1 + localId + 1 ]);
-			field_broadcastDiffBottom		(fieldDiff, &blw[ 1 + localId + 0 ]);
-			field_broadcastDiffBottomLeft	(fieldDiff, &blw[ 1 + localId - 1 ]);
-			
-		}
-		
-
-		// sync and save changes to global memory
+	
+		// Last row is an overlapping region with the next work group.
+		// Save this row  to overlappingRegions buffer to avoid synchronizing with other work group
 		barrier(CLK_LOCAL_MEM_FENCE);
-		if ( y != 0 && globalId < BOARD_WIDTH && abv[ 1 + localId ].val ) {
-			atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( globalId, y - 1 ) , abv[ 1 + localId ].val);
+		if ( x < BOARD_WIDTH ) {
+			overlappingRegions[ localWorkGroupId * BOARD_LINE_SKIP + x + 1 ].val = cur[ 1 + localId ].val;
 		}
 		
-		if ( localId == 0 ) {
-			atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( globalId - 1, y - 1 ) , abv[ 0 ].val);
+		if ( localId == 0 &&  cur[ 0 ].val ) {
+			overlappingRegions[ localWorkGroupId * BOARD_LINE_SKIP + x + 1 - 1 ].val |= cur[ 0 ].val;
 		}
-		if ( localId == LOCAL_SIZE - 1 && globalId < BOARD_WIDTH ) {
-			atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( globalId + 1, y - 1 ) , abv[ LOCAL_SIZE + 1 ].val);
+		if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH && cur[ LOCAL_SIZE + 1 ].val) {
+			overlappingRegions[ localWorkGroupId * BOARD_LINE_SKIP + x + 1 + 1 ].val |= cur[ LOCAL_SIZE + 1 ].val;
 		}
 	}
-	
-	// sync and save changes to global memory
-	barrier(CLK_LOCAL_MEM_FENCE);
-	if ( globalId < BOARD_WIDTH && cur[ 1 + localId ].val ) {
-		atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( globalId, BOARD_HEIGHT - 1 ) , cur[ 1 + localId ].val);
-	}
-	
-	if ( localId == 0 ) {
-		atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( globalId - 1, BOARD_HEIGHT - 1 ) , cur[ 0 ].val);
-	}
-	if ( localId == LOCAL_SIZE - 1 && globalId < BOARD_WIDTH ) {
-		atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( globalId + 1, BOARD_HEIGHT - 1) , cur[ LOCAL_SIZE + 1 ].val);
-	}
-	
 	
 }
 	

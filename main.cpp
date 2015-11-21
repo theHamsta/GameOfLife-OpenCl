@@ -16,16 +16,16 @@ int main(int argc, char **argv) {
     
 	srand(3);
 	
-	Board board(5,3);
+	Board board(5,7);
 	
 	board.fillRandomly();
 	board.uploadToDevice();
 
-// 	board.print(true);
-// 	board.debugPrintDeviceData(true);
+	board.print(false);
+	board.debugPrintDeviceData(false);
 // 	board.print();
 	
-	for(int i = 0; i < 100; i++){
+	for(int i = 0; i < 50; i++){
 		clearScreen();
 	
 		board.stepDeviceOptimized();

@@ -40,7 +40,9 @@ private:
 	void init();
 	void initCl();
 	
-	size_t getBufferSizeData();
+	size_t getDataBufferSize();
+	
+	void fixOverlappingRegionsDevice();
 	
 	
 	uint m_widthDiv4;
@@ -55,6 +57,7 @@ private:
 	// Device data
 	cl::Buffer m_dataDevice;
 	cl::Buffer m_lutDevice;
+	cl::Buffer m_dataOverlappingRegionsDevice;
 	
 	// OpenCl stuff
     std::map<std::string, cl::Kernel> m_kernels; 

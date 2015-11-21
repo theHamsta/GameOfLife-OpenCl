@@ -24,7 +24,7 @@ Board::Board(uint widthDiv4, uint heightDiv3):
 	m_widthDiv4(widthDiv4),
 	m_heightDiv3(heightDiv3)
 {
-	m_dataHost = new field_t[ this->getBufferSizeData() / sizeof(field_t) ];
+	m_dataHost = new field_t[ this->getDataBufferSize() / sizeof(field_t) ];
 	
 	init();
 }
@@ -37,7 +37,7 @@ Board::~Board()
 
 void Board::clear()
 {
-	memset(m_dataHost, 0, this->getBufferSizeData());
+	memset(m_dataHost, 0, this->getDataBufferSize());
 
 	m_bDataValidHost = true;
 	m_bDataValidDevice = false;
@@ -68,7 +68,8 @@ void Board::initCl()
 	source = clSetup.readSource("kernels/step.cl");
     kernelSources.push_back(header + field_h + source);
    
-
+	source = clSetup.readSource("kernels/fixOverlappingRegions.cl");
+    kernelSources.push_back(header + field_h + source);
 
     // Setup OpenCL
 #if defined(DEBUG_MODE)
@@ -99,7 +100,7 @@ void Board::initCl()
 	if (m_device.getInfo<CL_DEVICE_VENDOR>() == "NVIDIA Corporation") 
     {
         // the last two aren't NVIDIA-specific
-		compileTimeFlags << " -cl-nv-verbose -cl-fast-relaxed-math -cl-mad-enable"; 
+		compileTimeFlags << " -DNVIDIA -cl-nv-verbose -cl-fast-relaxed-math -cl-mad-enable"; 
 	}
 	
 	compileTimeFlags << " -DBOARD_WIDTH=" << m_widthDiv4 
@@ -121,9 +122,7 @@ void Board::initCl()
 	m_localRange = cl::NullRange;
     m_globalRange = cl::NullRange;
 	
-	
-	m_dataDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, this->getBufferSizeData());
-	m_lutDevice = cl::Buffer(m_context, CL_MEM_READ_ONLY, FIELD_3X6LINE_LUT_SIZE);
+
 
 	// work group sizes
 	
@@ -139,6 +138,11 @@ void Board::initCl()
 	
 	cout << "Local workgroup size: " << m_localRange[0] << endl;
 	cout << "Global workgroup size: " << m_globalRange[0] << endl;
+	
+	
+	m_dataDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, this->getDataBufferSize());
+	m_dataOverlappingRegionsDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, (m_globalRange[0] / m_localRange[0]) * (m_widthDiv4 + 2));
+	m_lutDevice = cl::Buffer(m_context, CL_MEM_READ_ONLY, FIELD_3X6LINE_LUT_SIZE);
 }
 
 
@@ -171,10 +175,10 @@ void Board::print(bool bWithNeighbourBits)
 
 void Board::debugPrintDeviceData(bool bWithNeighbourBits)
 {
-	field_t* controllBuffer = new field_t[getBufferSizeData() / sizeof(field_t)];
+	field_t* controllBuffer = new field_t[getDataBufferSize() / sizeof(field_t)];
 	
 	m_queue.enqueueReadBuffer( m_dataDevice, CL_TRUE,
-                               ZERO_OFFSET, getBufferSizeData(), controllBuffer );
+                               ZERO_OFFSET, getDataBufferSize(), controllBuffer );
 	
 	for ( unsigned int y = 0; y < m_heightDiv3; y++ ) {
 		for ( int l = BACTERIA_PER_FIELD_Y + (bWithNeighbourBits ? +1 : - 1); l >= 0; l-- ) {
@@ -220,11 +224,13 @@ void Board::stepDeviceOptimized()
 	cl::Kernel &kernel = m_kernels[ "stepDevice" ];
 	try {
 		kernel.setArg( 0, m_dataDevice );
-		kernel.setArg( 1, (m_localRange[0] + 2) * 3 * sizeof(field_t), NULL);
+		kernel.setArg( 1, m_dataOverlappingRegionsDevice);
+		kernel.setArg( 2, (m_localRange[0] + 2) * 3 * sizeof(field_t), NULL);
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
 									m_localRange, m_globalRange);
 
+		fixOverlappingRegionsDevice();
 		m_queue.enqueueBarrier();
 	} catch (cl::Error& err ) {
 		cout << "Failed to call kernel stepDevice." << endl;
@@ -233,6 +239,25 @@ void Board::stepDeviceOptimized()
 		exit(EXIT_FAILURE);
 	}
 }
+
+void Board::fixOverlappingRegionsDevice()
+{
+	cl::Kernel &kernel = m_kernels[ "fixOverlappingRegions" ];
+	try {
+		kernel.setArg( 0, m_dataDevice );
+		kernel.setArg( 1, m_dataOverlappingRegionsDevice);
+
+		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
+									m_localRange, m_globalRange);
+
+	} catch (cl::Error& err ) {
+		cout << "Failed to call kernel fixOverlappingRegions." << endl;
+		cout << "Error \"" << getOpenClErrorString(err.err()) << "\"";
+		cout << " in Function \"" << err.what() << "\"" <<  endl;
+		exit(EXIT_FAILURE);
+	}
+}
+
 
 
 void Board::broadcastNeighboursHost()
@@ -361,7 +386,7 @@ void Board::fillRandomly()
 
 
 
-size_t Board::getBufferSizeData()
+size_t Board::getDataBufferSize()
 {
 	return sizeof(field_t)
 		* (m_heightDiv3 + 2 * BOARD_PADDING_Y)
@@ -373,7 +398,7 @@ void Board::uploadToDevice()
 	assert( m_bDataValidHost );
 	
 	m_queue.enqueueWriteBuffer( m_dataDevice, CL_TRUE,
-                               ZERO_OFFSET, getBufferSizeData(), m_dataHost );
+                               ZERO_OFFSET, getDataBufferSize(), m_dataHost );
 	
 	m_bDataValidDevice = true;
 }
@@ -383,19 +408,19 @@ void Board::downloadFromDevice()
 	assert( m_bDataValidDevice );
 	
 	m_queue.enqueueReadBuffer( m_dataDevice, CL_TRUE,
-                               ZERO_OFFSET, getBufferSizeData(), m_dataHost );
+                               ZERO_OFFSET, getDataBufferSize(), m_dataHost );
 	
 	m_bDataValidHost = true;
 }
 
 void Board::checkConsistency()
 {
-	field_t* controllBuffer = new field_t[getBufferSizeData() / sizeof(field_t)];
+	field_t* controllBuffer = new field_t[getDataBufferSize() / sizeof(field_t)];
 	
 	m_queue.enqueueReadBuffer( m_dataDevice, CL_TRUE,
-                               ZERO_OFFSET, getBufferSizeData(), controllBuffer );
+                               ZERO_OFFSET, getDataBufferSize(), controllBuffer );
 	
-	for( uint i = 0; i < getBufferSizeData() / sizeof(field_t); i++ ){
+	for( uint i = 0; i < getDataBufferSize() / sizeof(field_t); i++ ){
 		assert(controllBuffer[i].val == m_dataHost[i].val);
 	}
 	
