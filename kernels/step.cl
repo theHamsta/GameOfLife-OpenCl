@@ -50,6 +50,8 @@ kernel void stepDevice (
 		y_end = BOARD_HEIGHT;
 	}
 	
+
+	
 	for ( uint x = localId; x < ((BOARD_WIDTH - 1) / LOCAL_SIZE + 1) * LOCAL_SIZE /* ensure that warps do not diverge or else sync is impossible!!!*/; x += LOCAL_SIZE ) {
 		memClear( sharedMem, SHARED_MEM_SIZE );
 		for ( uint y = y_start; y < y_end; y++ ) {
@@ -101,6 +103,10 @@ kernel void stepDevice (
 // 					field_printDebugAllLines(&go);
 // 					printf("\n");
 // 				}
+			if ( localId == 0 && x < BOARD_WIDTH && y != y_start) {
+				abv[ 1 ].val |= verticalOverlappingRegions[ y - 1 - y_start ].val;
+			}
+			
 			if ( y != 0 && x < BOARD_WIDTH && abv[ 1 + localId ].val ) {
 				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x, y - 1 ) , abv[ 1 + localId ].val);
 			}
@@ -110,9 +116,13 @@ kernel void stepDevice (
 			if ( localId == 0 && abv[ 0 ].val) {
 				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x - 1, y - 1 ) , abv[ 0 ].val);
 			}
+			if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH && abv[ LOCAL_SIZE + 1 ].val && y != y_start ) {
+				verticalOverlappingRegions[ y - 1 - y_start ].val = abv[ LOCAL_SIZE + 1 ].val;
+			}
 // 			if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH && abv[ LOCAL_SIZE + 1 ].val) {
 // 				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x + 1, y - 1 ) , abv[ LOCAL_SIZE + 1 ].val);
 // 			}
+			barrier(CLK_LOCAL_MEM_FENCE);
 		}
 
 	

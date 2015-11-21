@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 	board.debugPrintDeviceData(true);
 // 	board.print();
 	
-	for(int i = 0; i < 1; i++){
+	for(int i = 0; i < 20; i++){
 		clearScreen();
 	
 		board.stepDeviceOptimized();

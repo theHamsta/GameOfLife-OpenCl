@@ -226,7 +226,7 @@ void Board::stepDeviceOptimized()
 		kernel.setArg( 0, m_dataDevice );
 		kernel.setArg( 1, m_dataOverlappingRegionsDevice);
 		kernel.setArg( 2, (m_localRange[0] + 2) * 3 * sizeof(field_t), NULL);
-		kernel.setArg( 3, blockHeight * sizeof(field_t) , NULL);
+		kernel.setArg( 3, (blockHeight - 1) * sizeof(field_t) , NULL);
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
 									m_globalRange, m_localRange );
