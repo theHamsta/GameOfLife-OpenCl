@@ -352,7 +352,7 @@ void static inline field_broadcastDiffLeft( uint field, FIELD_LOCAL field_t* nei
 	// broadcast value
 	uint32_t val = (field & FIELD_ALL_ELEMENTS_LEFT_MASK) >> BACTERIA_PER_FIELD_X;
 	// set value
-	atomic_or((global uint*)neighbour, val);	
+	atomic_or((local uint*)neighbour, val);	
 }
 
 void static inline field_broadcastDiffTopLeft( uint field, FIELD_LOCAL field_t* neighbour )
@@ -360,7 +360,7 @@ void static inline field_broadcastDiffTopLeft( uint field, FIELD_LOCAL field_t* 
 	// broadcast value
 	uint32_t val = (field & FIELD_ALL_ELEMENTS_TOP_LEFT_MASK) >> (FIELD_ELEMENT_TL_POS - FIELD_NEIGHBOUR_BR_POS);
 	// set value
-	atomic_or((global uint*)neighbour, val);	
+	atomic_or((local uint*)neighbour, val);	
 }
 
 
@@ -369,7 +369,7 @@ void static inline field_broadcastDiffTop( uint field, FIELD_LOCAL field_t* neig
 	// broadcast value
 	uint32_t val = (field & FIELD_ALL_ELEMENTS_TOP_MASK) >> (BACTERIA_PER_FIELD_Y * FIELD_LINE_WIDTH);
 	// set value
-	atomic_or((global uint*)neighbour, val);	
+	atomic_or((local uint*)neighbour, val);	
 }
 
 void static inline field_broadcastDiffTopRight( uint field, FIELD_LOCAL field_t* neighbour )
@@ -377,7 +377,7 @@ void static inline field_broadcastDiffTopRight( uint field, FIELD_LOCAL field_t*
 	// broadcast value
 	uint32_t val = (field & FIELD_ALL_ELEMENTS_TOP_RIGHT_MASK) >> (FIELD_ELEMENT_TR_POS - FIELD_NEIGHBOUR_BL_POS);
 	// set value
-	atomic_or((global uint*)neighbour, val);	
+	atomic_or((local uint*)neighbour, val);	
 }
 
 void static inline field_broadcastDiffRight( uint field, FIELD_LOCAL field_t* neighbour )
@@ -385,7 +385,7 @@ void static inline field_broadcastDiffRight( uint field, FIELD_LOCAL field_t* ne
 	// broadcast value
 	uint32_t val = (field & FIELD_ALL_ELEMENTS_RIGHT_MASK) << BACTERIA_PER_FIELD_X;
 	// set value
-	atomic_or((global uint*)neighbour, val);	
+	atomic_or((local uint*)neighbour, val);	
 }
 
 void static inline field_broadcastDiffBottomRight( uint field, FIELD_LOCAL field_t* neighbour )
@@ -393,7 +393,7 @@ void static inline field_broadcastDiffBottomRight( uint field, FIELD_LOCAL field
 	// broadcast value
 	uint32_t val = (field & FIELD_ALL_ELEMENTS_BOTTOM_RIGHT_MASK) << (-FIELD_ELEMENT_BR_POS + FIELD_NEIGHBOUR_TL_POS);
 	// set value
-	atomic_or((global uint*)neighbour, val);	
+	atomic_or((local uint*)neighbour, val);	
 }
 
 void static inline field_broadcastDiffBottom( uint field, FIELD_LOCAL field_t* neighbour )
@@ -402,7 +402,7 @@ void static inline field_broadcastDiffBottom( uint field, FIELD_LOCAL field_t* n
 	uint32_t val = (field & FIELD_ALL_ELEMENTS_BOTTOM_MASK) << (BACTERIA_PER_FIELD_Y * FIELD_LINE_WIDTH);
 
 	// set value
-	atomic_or((global uint*)neighbour, val);	
+	atomic_or((local uint*)neighbour, val);	
 }
 
 void static inline field_broadcastDiffBottomLeft( uint field, FIELD_LOCAL field_t* neighbour )
@@ -410,7 +410,7 @@ void static inline field_broadcastDiffBottomLeft( uint field, FIELD_LOCAL field_
 	// broadcast value
 	uint32_t val = (field & FIELD_ALL_ELEMENTS_BOTTOM_LEFT_MASK) << (-FIELD_ELEMENT_BL_POS + FIELD_NEIGHBOUR_TR_POS);
 	// set value
-	atomic_or((global uint*)neighbour, val);	
+	atomic_or((local uint*)neighbour, val);	
 }
 
 #else
