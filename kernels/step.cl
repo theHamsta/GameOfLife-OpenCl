@@ -4,9 +4,9 @@
 #define LOCAL_SIZE (get_local_size(0))
 #define SHARED_MEM_SIZE  (3 * ( get_local_size(0) + 2))
 
-void inline clearSharedMem( local field_t* sharedMem ){
-	for ( uint idx = get_local_id(0); idx < SHARED_MEM_SIZE; idx += LOCAL_SIZE ) {
-		sharedMem[idx].val = 0;
+void inline memClear( local field_t* mem, uint memElements ){
+	for ( uint idx = get_local_id(0); idx < memElements; idx += LOCAL_SIZE ) {
+		mem[idx].val = 0;
 	}
 	barrier(CLK_LOCAL_MEM_FENCE);
 }
@@ -36,7 +36,7 @@ kernel void stepDevice (
 	local field_t* blw = cur + (LOCAL_SIZE + 2);
 	
 
-	clearSharedMem( sharedMem );
+	memClear( sharedMem, SHARED_MEM_SIZE );
 	
 
 	
@@ -46,12 +46,14 @@ kernel void stepDevice (
 		
 		uint fieldDiff;
 		
+		memClear( blw, LOCAL_SIZE + 2 );
+		
 		// calculate the bits that need to be changed in the current field
 		if ( globalId < BOARD_WIDTH ) {
 			field_t oldField = buffer[BOARD_GET_FIELD_IDX( globalId, y )];
 			field_t newField = field_getUpdatedFieldNeighbourCount( oldField );
 			fieldDiff = (oldField.val ^ newField.val);
-			cur[ 1 + localId ].val = fieldDiff;
+			atomic_or(&cur[ 1 + localId ].val, fieldDiff);
 			
 			if( localId == 0 ) {
 				blw[ 0 ].val = 0;
