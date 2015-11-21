@@ -128,7 +128,12 @@ kernel void stepDevice (
 	
 		// Last row is an overlapping region with the next work group.
 		// Save this row  to overlappingRegions buffer to avoid synchronizing with other work group
-		barrier(CLK_LOCAL_MEM_FENCE);
+		
+		if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH &&  y != y_start ) {
+			verticalOverlappingRegions[ y_end - y_start - 1 ].val = cur[ LOCAL_SIZE + 1 ].val;
+		}
+
+		
 		if ( x < BOARD_WIDTH ) {
 			overlappingRegions[ localWorkGroupId * BOARD_LINE_SKIP + x + 1 ].val = cur[ 1 + localId ].val;
 		}
@@ -139,7 +144,8 @@ kernel void stepDevice (
 		if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH && cur[ LOCAL_SIZE + 1 ].val) {
 			overlappingRegions[ localWorkGroupId * BOARD_LINE_SKIP + x + 1 + 1 ].val |= cur[ LOCAL_SIZE + 1 ].val;
 		}
+		barrier(CLK_LOCAL_MEM_FENCE);
 	}
-	
+
 }
 	

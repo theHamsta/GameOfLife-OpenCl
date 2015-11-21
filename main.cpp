@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
     
 	srand(2);
 	
-	Board board(3,3);
+	Board board(3,1);
 	
 	board.fillRandomly();
 	board.uploadToDevice();
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 	board.debugPrintDeviceData(true);
 // 	board.print();
 	
-	for(int i = 0; i < 20; i++){
+	for(int i = 0; i < 1; i++){
 		clearScreen();
 	
 		board.stepDeviceOptimized();
@@ -34,8 +34,8 @@ int main(int argc, char **argv) {
 		board.broadcastNeighboursHost();
 // 		board.checkConsistency();
 		
-		board.print(false);
-		board.debugPrintDeviceData(false);
+		board.print(true);
+		board.debugPrintDeviceData(true);
 
 		
 // 
