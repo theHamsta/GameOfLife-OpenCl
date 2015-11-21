@@ -24,6 +24,7 @@ public:
 	void print(bool bWithNeighbourBits);
 	void debugPrintDeviceData(bool bWithNeighbourBits);
 	void checkConsistency();
+	void checkRelevantConsistency();
 	
 	void updateFieldsDevice();
 	void broadcastNeighboursDevice();

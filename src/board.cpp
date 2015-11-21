@@ -15,7 +15,7 @@
 #define BOARD_PTR_FIRST_FIELD (this->m_dataHost + BOARD_PADDING_Y * BOARD_LINE_SKIP + BOARD_PADDING_X)
 
 #define BOARD_GET_FIELD_PTR(X,Y) (&(this->m_dataHost[ ((X) + BOARD_PADDING_X) + ((Y) + BOARD_PADDING_Y) * BOARD_LINE_SKIP ]))
-
+#define BOARD_GET_FIELD_PTR_FROM_DATA(data, X,Y) (data +((X) + BOARD_PADDING_X) + ((Y) + BOARD_PADDING_Y) * BOARD_LINE_SKIP )
 
 
 using namespace std;
@@ -139,7 +139,7 @@ void Board::initCl()
 	
 	
 	m_dataDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, this->getDataBufferSize());
-	m_dataOverlappingRegionsDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, (m_globalRange[0] / m_localRange[0]) * (m_widthDiv4 + 2));
+	m_dataOverlappingRegionsDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, (m_globalRange[0] / m_localRange[0]) * (m_widthDiv4 + 2) * sizeof(field_t));
 	m_lutDevice = cl::Buffer(m_context, CL_MEM_READ_ONLY, FIELD_3X6LINE_LUT_SIZE);
 }
 
@@ -425,6 +425,27 @@ void Board::checkConsistency()
 		assert(controllBuffer[i].val == m_dataHost[i].val);
 	}
 	
+	delete controllBuffer;
+}
+
+void Board::checkRelevantConsistency()
+{
+	field_t* controllBuffer = new field_t[getDataBufferSize() / sizeof(field_t)];
+
+	m_queue.enqueueReadBuffer( m_dataDevice, CL_TRUE,
+                               ZERO_OFFSET, getDataBufferSize(), controllBuffer );
+
+	for (uint y = 0; y < m_heightDiv3; y++){
+		for ( uint x = 0; x < m_widthDiv4; x++){
+			if( BOARD_GET_FIELD_PTR(x,y)->val != BOARD_GET_FIELD_PTR_FROM_DATA(controllBuffer, x, y)->val){
+				printf("%i,%i\n",x,y);
+				field_printDebugAllLines(BOARD_GET_FIELD_PTR(x,y));
+				field_printDebugAllLines(BOARD_GET_FIELD_PTR_FROM_DATA(controllBuffer, x, y));
+				exit(-1);
+			}
+		}
+	}
+
 	delete controllBuffer;
 }
 
