@@ -19,7 +19,7 @@ public:
 	
 	void clear();
 	void fillRandomly();
-	void stepDevice();
+	void stepDeviceNaive();
 	void stepHost();
 	void print(bool bWithNeighbourBits);
 	void debugPrintDeviceData(bool bWithNeighbourBits);

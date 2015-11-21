@@ -206,7 +206,7 @@ void Board::stepHost()
 	m_bDataValidDevice = false;
 }
 
-void Board::stepDevice()
+void Board::stepDeviceNaive()
 {
 	this->updateFieldsDevice();
 	this->broadcastNeighboursDevice();
