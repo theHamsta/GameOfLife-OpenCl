@@ -13,7 +13,7 @@
 
 class Board {
 public:
-	Board(uint width, uint height);
+	Board(uint width, uint height, uint warpsPerGroup, uint localGroups);
 	Board(const Board& that) = delete;
 	~Board();
 	
@@ -39,7 +39,7 @@ public:
 	
 private:
 	void init();
-	void initCl();
+	void initCl(uint warpsPerGroup, uint localGroups);
 	
 	size_t getDataBufferSize();
 	

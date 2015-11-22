@@ -112,8 +112,14 @@ kernel void stepDevice (
 				}
 				
 				
-				if ( localId == 0 && abv[ 0 ].val) {
-					atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x - 1, y - 1 ) , abv[ 0 ].val);
+				if ( localId == 0 &&  abv[ 0 ].val) {
+					if ( y != y_start ) {
+						atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x - 1, y - 1 ) , abv[ 0 ].val);
+					} else {
+						if (x!=0) {
+							upperOverlappingRegions[ localWorkGroupId * BOARD_WIDTH + x - 1].val |= abv[ 0 ].val; 
+						}
+					}
 				}
 				if ( localId == 0 && x < BOARD_WIDTH && y != y_start ) {
 					verticalOverlappingRegions[ y - 1 - y_start ].val = abv[ LOCAL_SIZE + 1 ].val;
@@ -121,12 +127,10 @@ kernel void stepDevice (
 
 				
 			}
-			barrier(CLK_LOCAL_MEM_FENCE );
+			barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 		}
 
 		if ( x < BOARD_WIDTH ) {
-			// Last row is an overlapping region with the next work group.
-			// Save this row  to overlappingRegions buffer to avoid synchronizing with other work group
 			
 			if ( localId == 0 && x < BOARD_WIDTH && x != 0 ) {
 				cur[ 1 ].val |= verticalOverlappingRegions[ y_end - y_start - 1  ].val;
@@ -139,12 +143,19 @@ kernel void stepDevice (
 			}
 		}
 		barrier(CLK_LOCAL_MEM_FENCE );
-		
+		// Last row is an overlapping region with the next work group.
+		// Save this row to overlappingRegions buffer to avoid synchronizing with other work group
 		if ( x < BOARD_WIDTH ) {
 			
 			atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x, y_end - 1 ) , cur[ 1 + localId ].val);
 			if ( y_end != BOARD_HEIGHT ) {
 				lowerOverlappingRegions[ localWorkGroupId * BOARD_WIDTH + x ].val = blw[ 1 + localId ].val;
+			}
+			if (localId == 0 && x != 0) {
+				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x - 1, y_end - 1 ) , cur[ 0 ].val);
+				if ( y_end != BOARD_HEIGHT ) {
+					lowerOverlappingRegions[ localWorkGroupId * BOARD_WIDTH + x - 1].val |= blw[ 0 ].val;
+				}
 			}
 			
 		}
