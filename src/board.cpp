@@ -441,6 +441,7 @@ void Board::checkRelevantConsistency()
 				printf("%i,%i\n",x,y);
 				field_printDebugAllLines(BOARD_GET_FIELD_PTR(x,y));
 				field_printDebugAllLines(BOARD_GET_FIELD_PTR_FROM_DATA(controllBuffer, x, y));
+
 				exit(-1);
 			}
 		}

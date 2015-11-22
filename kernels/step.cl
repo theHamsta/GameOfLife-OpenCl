@@ -90,15 +90,15 @@ kernel void stepDevice (
 
 			// sync and save changes to global memory
 			barrier(CLK_LOCAL_MEM_FENCE);
-// 								if( x == 1 ) {
-// 					field_t go = abv[ 1 + localId ];
-// 					field_printDebugAllLines(&go);
-// 					go = cur[ 1 + localId ];
-// 					field_printDebugAllLines(&go);
-// 					go = blw[ 1 + localId ];
-// 					field_printDebugAllLines(&go);
-// 					printf("\n");
-// 				}
+ 					//			if( x == 1 ) {
+ 					//field_t go = abv[ 2 + localId ];
+ 					//field_printDebugAllLines(&go);
+ 					//go = cur[ 2 + localId ];
+ 					//field_printDebugAllLines(&go);
+ 					//go = blw[ 2 + localId ];
+ 					//field_printDebugAllLines(&go);
+ 					//printf("y=%i\n", y);
+ 				//}
 			if ( localId == 0 && x < BOARD_WIDTH && y != y_start && x != 0) {
 				abv[ 1 ].val |= verticalOverlappingRegions[ y - 1 - y_start ].val;
 			}
@@ -112,14 +112,14 @@ kernel void stepDevice (
 				if ( localId == 0 && abv[ 0 ].val) {
 					atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x - 1, y - 1 ) , abv[ 0 ].val);
 				}
-				if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH && abv[ LOCAL_SIZE + 1 ].val && y != y_start ) {
+				if ( localId == 0 && x < BOARD_WIDTH && y != y_start ) {
 					verticalOverlappingRegions[ y - 1 - y_start ].val = abv[ LOCAL_SIZE + 1 ].val;
 				}
 	// 			if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH && abv[ LOCAL_SIZE + 1 ].val) {
 	// 				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x + 1, y - 1 ) , abv[ LOCAL_SIZE + 1 ].val);
 	// 			}
 			}
-			barrier(CLK_LOCAL_MEM_FENCE);
+			barrier(CLK_LOCAL_MEM_FENCE );
 		}
 
 	
@@ -130,10 +130,10 @@ kernel void stepDevice (
 			cur[ 1 ].val |= verticalOverlappingRegions[ y_end - y_start - 1  ].val;
 		}
 		
-		if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH ) {
+		if ( localId == 0 && x < BOARD_WIDTH ) {
 			verticalOverlappingRegions[ y_end - y_start - 1 ].val = cur[ LOCAL_SIZE + 1 ].val;
 		}
-
+		barrier(CLK_LOCAL_MEM_FENCE );
 		
 		if ( x < BOARD_WIDTH ) {
 			//printf("%i\n", localWorkGroupId * BOARD_LINE_SKIP + x + 1);

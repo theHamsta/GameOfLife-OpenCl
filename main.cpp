@@ -7,7 +7,7 @@
 using namespace std;
 
 void clearScreen() {
-// 	printf("\e[1;1H\e[2J");
+ 	printf("\e[1;1H\e[2J");
 }
 
 
@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
     
 	srand(2);
 	
-	Board board(10,5);
+	Board board(14,6);
 	
 	board.fillRandomly();
 	board.uploadToDevice();
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 	board.debugPrintDeviceData(true);
 // 	board.print();
 	
-	for(int i = 0; i < 7; i++){
+	for(int i = 0; i < 100; i++){
 		clearScreen();
 	
 		board.stepDeviceOptimized();
@@ -33,10 +33,12 @@ int main(int argc, char **argv) {
 		board.updateFieldsHost();
 		board.broadcastNeighboursHost();
 		
-		board.print(true);
-		board.debugPrintDeviceData(true);
 
- 		board.checkRelevantConsistency();
+
+		board.print(false);
+		board.debugPrintDeviceData(false);
+		board.checkRelevantConsistency();
+
 
 
 
