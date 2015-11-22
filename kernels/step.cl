@@ -99,8 +99,8 @@ kernel void stepDevice (
 	 					//field_printDebugAllLines(&go);
 	 					//printf("y=%i\n", y);
 	 				//}
-				if ( localId == 0 && y != y_start && x != 0) {
-					abv[ 1 ].val |= verticalOverlappingRegions[ y - 1 - y_start ].val;
+				if ( localId == 0 && x != 0) {
+					abv[ 1 ].val |= verticalOverlappingRegions[ y - 1 - y_start + 1 ].val;
 				}
 				
 				if ( y != y_start ) {
@@ -121,8 +121,8 @@ kernel void stepDevice (
 						}
 					}
 				}
-				if ( localId == 0 && x < BOARD_WIDTH && y != y_start ) {
-					verticalOverlappingRegions[ y - 1 - y_start ].val = abv[ LOCAL_SIZE + 1 ].val;
+				if ( localId == 0 && x < BOARD_WIDTH ) {
+					verticalOverlappingRegions[ y - 1 - y_start + 1 ].val = abv[ LOCAL_SIZE + 1 ].val;
 				}
 
 				
@@ -133,13 +133,13 @@ kernel void stepDevice (
 		if ( x < BOARD_WIDTH ) {
 			
 			if ( localId == 0 && x < BOARD_WIDTH && x != 0 ) {
-				cur[ 1 ].val |= verticalOverlappingRegions[ y_end - y_start - 1  ].val;
-				blw[ 1 ].val |= verticalOverlappingRegions[ y_end - y_start ].val;
+				cur[ 1 ].val |= verticalOverlappingRegions[ y_end - y_start - 1 + 1 ].val;
+				blw[ 1 ].val |= verticalOverlappingRegions[ y_end - y_start + 1 ].val;
 			}
 			
 			if ( localId == 0 && x < BOARD_WIDTH ) {
-				verticalOverlappingRegions[ y_end - y_start - 1 ].val = cur[ LOCAL_SIZE + 1 ].val;
-				verticalOverlappingRegions[ y_end - y_start ].val = blw[ LOCAL_SIZE + 1 ].val;
+				verticalOverlappingRegions[ y_end - y_start - 1 + 1].val = cur[ LOCAL_SIZE + 1 ].val;
+				verticalOverlappingRegions[ y_end - y_start + 1].val = blw[ LOCAL_SIZE + 1 ].val;
 			}
 		}
 		barrier(CLK_LOCAL_MEM_FENCE );

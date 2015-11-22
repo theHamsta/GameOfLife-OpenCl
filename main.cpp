@@ -14,9 +14,9 @@ void clearScreen() {
 
 int main(int argc, char **argv) {
     
-	srand(2);
+	srand(3);
 	
-	Board board(5,2, 2,2);
+	Board board(10,5, 3,3);
 	
 	board.fillRandomly();
 	board.uploadToDevice();
