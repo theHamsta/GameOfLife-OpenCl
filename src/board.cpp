@@ -132,7 +132,7 @@ void Board::initCl()
 	m_localRange = cl::NDRange(localSize);
 	
 // 	m_globalRange = cl::NDRange( ((m_widthDiv4 / localSize) + 1) * localSize );
-	m_globalRange = cl::NDRange( 1 * localSize );
+	m_globalRange = cl::NDRange( 2 * localSize );
 	
 	cout << "Local workgroup size: " << m_localRange[0] << endl;
 	cout << "Global workgroup size: " << m_globalRange[0] << endl;

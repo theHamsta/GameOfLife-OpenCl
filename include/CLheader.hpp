@@ -43,12 +43,11 @@ typedef float4 float_type4;
 #define CL_USE_DEPRECATED_OPENCL_1_1_APIS
 #define __CL_ENABLE_EXCEPTIONS
 
-#include "cl.hpp"
-// #if defined(__APPLE__) || defined(__MACOSX)
-// #include <OpenCL/cl.hpp>
-// #else
-// #include <CL/cl.hpp>
-// #endif // __APPLE__
+ #if defined(__APPLE__) || defined(__MACOSX)
+ #include <OpenCL/cl.hpp>
+ #else
+ #include <CL/cl.hpp>
+ #endif // __APPLE__
 
 // Constants
 static const cl_int END_OF_CELLS_LIST = -1;
