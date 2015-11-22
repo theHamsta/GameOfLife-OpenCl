@@ -107,6 +107,7 @@ kernel void stepDevice (
 					if (abv[ 1 + localId ].val) {
 						atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x, y - 1 ) , abv[ 1 + localId ].val);
 					}
+				} else if ( y != 0 ) {
 					upperOverlappingRegions[ localWorkGroupId * BOARD_WIDTH + x ].val = abv[ 1 + localId ].val;
 				}
 				
