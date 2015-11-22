@@ -139,7 +139,8 @@ void Board::initCl()
 	
 	
 	m_dataDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, this->getDataBufferSize());
-	m_dataOverlappingRegionsDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, (m_globalRange[0] / m_localRange[0]) * (m_widthDiv4 + 2) * sizeof(field_t));
+	m_dataUpperOverlappingRegionsDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, (m_globalRange[0] / m_localRange[0]) * (m_widthDiv4 ) * sizeof(field_t));
+	m_dataLowerOverlappingRegionsDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, (m_globalRange[0] / m_localRange[0]) * (m_widthDiv4 ) * sizeof(field_t));
 	m_lutDevice = cl::Buffer(m_context, CL_MEM_READ_ONLY, FIELD_3X6LINE_LUT_SIZE);
 }
 
@@ -224,9 +225,10 @@ void Board::stepDeviceOptimized()
 		uint blockHeight = (m_heightDiv3 - 1) / (m_globalRange[0] / m_localRange[0]) + 1;
 		
 		kernel.setArg( 0, m_dataDevice );
-		kernel.setArg( 1, m_dataOverlappingRegionsDevice);
-		kernel.setArg( 2, (m_localRange[0] + 2) * 3 * sizeof(field_t), NULL);
-		kernel.setArg( 3, blockHeight * sizeof(field_t) , NULL);
+		kernel.setArg( 1, m_dataUpperOverlappingRegionsDevice);
+		kernel.setArg( 2, m_dataLowerOverlappingRegionsDevice);
+		kernel.setArg( 3, (m_localRange[0] + 2) * 3 * sizeof(field_t), NULL);
+		kernel.setArg( 4, (blockHeight + 2) * sizeof(field_t) , NULL);
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
 									m_globalRange, m_localRange );
@@ -246,7 +248,8 @@ void Board::fixOverlappingRegionsDevice()
 	cl::Kernel &kernel = m_kernels[ "fixOverlappingRegions" ];
 	try {
 		kernel.setArg( 0, m_dataDevice );
-		kernel.setArg( 1, m_dataOverlappingRegionsDevice);
+		kernel.setArg( 1, m_dataUpperOverlappingRegionsDevice);
+		kernel.setArg( 2, m_dataLowerOverlappingRegionsDevice);
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
 									m_globalRange, m_localRange );

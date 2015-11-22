@@ -21,20 +21,18 @@ void inline rotateSharedMemPointers( local field_t** a, local field_t** b, local
 
 
 kernel void stepDevice (
-	global field_t* buffer,
-	global field_t* overlappingRegions, // between global work groups
+	global field_t* restrict buffer,
+	global field_t* restrict upperOverlappingRegions, // between local work groups
+	global field_t* restrict lowerOverlappingRegions, // between local work groups
 	local field_t* sharedMem,
-	local field_t* verticalOverlappingRegions
+	local field_t* restrict verticalOverlappingRegions
 )
 {
-	
-	
 	uint globalId = get_global_id(0);
 	uint localId = get_local_id(0);
 	uint localWorkGroupId = globalId / LOCAL_SIZE;
 	uint numGlobalLocalWorkGroups = get_global_size(0) / LOCAL_SIZE;
 	
-// 	local field_t sharedMem[ 3 * ( LOCAL_SIZE + 2) ];
 	
 	local field_t* abv = sharedMem;
 	local field_t* cur = abv + (LOCAL_SIZE + 2);
@@ -53,6 +51,7 @@ kernel void stepDevice (
 
 	
 	for ( uint x = localId; x < ((BOARD_WIDTH - 1) / LOCAL_SIZE + 1) * LOCAL_SIZE /* ensure that warps do not diverge or else sync is impossible!!!*/; x += LOCAL_SIZE ) {
+		
 		memClear( sharedMem, SHARED_MEM_SIZE );
 		for ( uint y = y_start; y < y_end; y++ ) {
 
@@ -90,66 +89,69 @@ kernel void stepDevice (
 
 			// sync and save changes to global memory
 			barrier(CLK_LOCAL_MEM_FENCE);
- 					//			if( x == 1 ) {
- 					//field_t go = abv[ 2 + localId ];
- 					//field_printDebugAllLines(&go);
- 					//go = cur[ 2 + localId ];
- 					//field_printDebugAllLines(&go);
- 					//go = blw[ 2 + localId ];
- 					//field_printDebugAllLines(&go);
- 					//printf("y=%i\n", y);
- 				//}
-			if ( localId == 0 && x < BOARD_WIDTH && y != y_start && x != 0) {
-				abv[ 1 ].val |= verticalOverlappingRegions[ y - 1 - y_start ].val;
-			}
-			
-			if ( y != 0 && x < BOARD_WIDTH && abv[ 1 + localId ].val ) {
-				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x, y - 1 ) , abv[ 1 + localId ].val);
-			}
-	
-
-			if ( x < BOARD_WIDTH ){
+			if (x < BOARD_WIDTH ) {
+	 					//			if( x == 1 ) {
+	 					//field_t go = abv[ 2 + localId ];
+	 					//field_printDebugAllLines(&go);
+	 					//go = cur[ 2 + localId ];
+	 					//field_printDebugAllLines(&go);
+	 					//go = blw[ 2 + localId ];
+	 					//field_printDebugAllLines(&go);
+	 					//printf("y=%i\n", y);
+	 				//}
+				if ( localId == 0 && y != y_start && x != 0) {
+					abv[ 1 ].val |= verticalOverlappingRegions[ y - 1 - y_start ].val;
+				}
+				
+				if ( y != y_start ) {
+					if (abv[ 1 + localId ].val) {
+						atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x, y - 1 ) , abv[ 1 + localId ].val);
+					}
+				} else if ( y != 0 ) {
+					upperOverlappingRegions[ localWorkGroupId * BOARD_WIDTH + x ].val = abv[ 1 + localId ].val;
+				}
+				
+				
 				if ( localId == 0 && abv[ 0 ].val) {
 					atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x - 1, y - 1 ) , abv[ 0 ].val);
 				}
 				if ( localId == 0 && x < BOARD_WIDTH && y != y_start ) {
 					verticalOverlappingRegions[ y - 1 - y_start ].val = abv[ LOCAL_SIZE + 1 ].val;
 				}
-	// 			if ( localId == LOCAL_SIZE - 1 && x < BOARD_WIDTH && abv[ LOCAL_SIZE + 1 ].val) {
-	// 				atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x + 1, y - 1 ) , abv[ LOCAL_SIZE + 1 ].val);
-	// 			}
+
+				
 			}
 			barrier(CLK_LOCAL_MEM_FENCE );
 		}
 
-	
-		// Last row is an overlapping region with the next work group.
-		// Save this row  to overlappingRegions buffer to avoid synchronizing with other work group
-		
-		if ( localId == 0 && x < BOARD_WIDTH && x != 0 ) {
-			cur[ 1 ].val |= verticalOverlappingRegions[ y_end - y_start - 1  ].val;
-		}
-		
-		if ( localId == 0 && x < BOARD_WIDTH ) {
-			verticalOverlappingRegions[ y_end - y_start - 1 ].val = cur[ LOCAL_SIZE + 1 ].val;
+		if ( x < BOARD_WIDTH ) {
+			// Last row is an overlapping region with the next work group.
+			// Save this row  to overlappingRegions buffer to avoid synchronizing with other work group
+			
+			if ( localId == 0 && x < BOARD_WIDTH && x != 0 ) {
+				cur[ 1 ].val |= verticalOverlappingRegions[ y_end - y_start - 1  ].val;
+				blw[ 1 ].val |= verticalOverlappingRegions[ y_end - y_start ].val;
+			}
+			
+			if ( localId == 0 && x < BOARD_WIDTH ) {
+				verticalOverlappingRegions[ y_end - y_start - 1 ].val = cur[ LOCAL_SIZE + 1 ].val;
+				verticalOverlappingRegions[ y_end - y_start ].val = blw[ LOCAL_SIZE + 1 ].val;
+			}
 		}
 		barrier(CLK_LOCAL_MEM_FENCE );
 		
 		if ( x < BOARD_WIDTH ) {
-			//printf("%i\n", localWorkGroupId * BOARD_LINE_SKIP + x + 1);
-			overlappingRegions[ localWorkGroupId * BOARD_LINE_SKIP + x + 1 ].val = cur[ 1 + localId ].val;
 			
+			atomic_xor( (global uint*) buffer + BOARD_GET_FIELD_IDX( x, y_end - 1 ) , cur[ 1 + localId ].val);
+			if ( y_end != BOARD_HEIGHT ) {
+				lowerOverlappingRegions[ localWorkGroupId * BOARD_WIDTH + x ].val = blw[ 1 + localId ].val;
+			}
 			
-			if ( localId == 0 &&  cur[ 0 ].val ) {
-				//printf("%i\n", localWorkGroupId * BOARD_LINE_SKIP + x + 1 - 1 );
-				overlappingRegions[ localWorkGroupId * BOARD_LINE_SKIP + x + 1 - 1 ].val |= cur[ 0 ].val;
-			}
-			if ( localId == LOCAL_SIZE - 1 && cur[ LOCAL_SIZE + 1 ].val) {
-				overlappingRegions[ localWorkGroupId * BOARD_LINE_SKIP + x + 1 + 1 ].val |= cur[ LOCAL_SIZE + 1 ].val;
-			}
 		}
 		barrier(CLK_LOCAL_MEM_FENCE);
 	}
+	
+
 
 }
 	

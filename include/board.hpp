@@ -58,7 +58,8 @@ private:
 	// Device data
 	cl::Buffer m_dataDevice;
 	cl::Buffer m_lutDevice;
-	cl::Buffer m_dataOverlappingRegionsDevice;
+	cl::Buffer m_dataUpperOverlappingRegionsDevice;
+	cl::Buffer m_dataLowerOverlappingRegionsDevice;
 	
 	// OpenCl stuff
     std::map<std::string, cl::Kernel> m_kernels; 
