@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
     
 	srand(2);
 	
-	Board board(15,2, 3,2);
+	Board board(5,2, 2,2);
 	
 	board.fillRandomly();
 	board.uploadToDevice();

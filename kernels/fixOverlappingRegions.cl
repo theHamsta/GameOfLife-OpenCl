@@ -34,10 +34,10 @@ kernel void fixOverlappingRegions (
 	for ( uint x = localId; x < ((BOARD_WIDTH - 1) / LOCAL_SIZE + 1) * LOCAL_SIZE /* ensure that warps do not diverge or else sync is impossible!!!*/; x += LOCAL_SIZE ) {
 		if ( x < BOARD_WIDTH ) {
 			if ( y_start != 0 ) {
-				buffer[ BOARD_GET_FIELD_IDX(x, y_start) ].val ^= lowerOverlappingRegions[ (localWorkGroupId - 1) * BOARD_LINE_SKIP + x + 1 ].val;
+				buffer[ BOARD_GET_FIELD_IDX(x, y_start) ].val ^= lowerOverlappingRegions[ (localWorkGroupId - 1) * BOARD_WIDTH + x ].val;
 			}
 			if ( y_end != BOARD_HEIGHT ) {
-				buffer[ BOARD_GET_FIELD_IDX(x, y_end - 1) ].val ^= upperOverlappingRegions[ (localWorkGroupId + 1)* BOARD_LINE_SKIP + x + 1 ].val;
+				buffer[ BOARD_GET_FIELD_IDX(x, y_end - 1) ].val ^= upperOverlappingRegions[ (localWorkGroupId + 1)* BOARD_WIDTH + x ].val;
 			}
 		}
 	}
