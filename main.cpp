@@ -69,7 +69,10 @@ int main(int argc, char **argv) {
 		
 
 		if(bGraphicalOutput){
+			cout << "Round: " << (i+1) << " of " << numRounds << endl;
+			cout << "Host: " << endl;
 			board.print(false);
+			cout << "Device: " << endl;
 			board.debugPrintDeviceData(false);
 		}
 		board.checkRelevantConsistency();
