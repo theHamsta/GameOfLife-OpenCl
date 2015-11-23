@@ -130,8 +130,6 @@ void Board::initCl(uint localWorkGroupSize, uint numLocalGroups)
 // 	m_globalRange = cl::NDRange( ((m_widthDiv4 / localSize) + 1) * localSize );
 	m_globalRange = cl::NDRange(  localWorkGroupSize * numLocalGroups );
 	
-	cout << "Local workgroup size: " << m_localRange[0] << endl;
-	cout << "Global workgroup size: " << m_globalRange[0] << endl;
 	
 	
 	m_dataDevice = cl::Buffer(m_context, CL_MEM_READ_WRITE, this->getDataBufferSize());
