@@ -20,14 +20,14 @@
 
 using namespace std;
 
-Board::Board(uint widthDiv4, uint heightDiv3, uint warpsPerGroup, uint localGroups):
+Board::Board(uint widthDiv4, uint heightDiv3, uint localWorkGroupSize, uint numLocalGroups):
 	m_widthDiv4(widthDiv4),
 	m_heightDiv3(heightDiv3)
 {
 	m_dataHost = new field_t[ this->getDataBufferSize() / sizeof(field_t) ];
 	
-	this->init();
-	this->initCl(warpsPerGroup, localGroups);
+	this->resetData();
+	this->initCl(localWorkGroupSize, numLocalGroups);
 }
 
 Board::~Board()
@@ -36,7 +36,7 @@ Board::~Board()
 }
 
 
-void Board::clear()
+void Board::resetData()
 {
 	memset(m_dataHost, 0, this->getDataBufferSize());
 
@@ -44,13 +44,8 @@ void Board::clear()
 	m_bDataValidDevice = false;
 }
 
-void Board::init()
-{
 
-	this->clear();
-}
-
-void Board::initCl(uint warpsPerGroup, uint localGroups)
+void Board::initCl(uint localWorkGroupSize, uint numLocalGroups)
 {
 	// Read kernel sources
     const SetupCL clSetup;
@@ -127,13 +122,13 @@ void Board::initCl(uint warpsPerGroup, uint localGroups)
 
 	// work group sizes
 	
-	uint localSize = warpsPerGroup;// m_kernels.begin()->second.getWorkGroupInfo<CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE>(m_device);
 	
 	
-	m_localRange = cl::NDRange(localSize);
 	
+	m_localRange = cl::NDRange(localWorkGroupSize);// m_kernels.begin()->second.getWorkGroupInfo<CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE>(m_device);
+
 // 	m_globalRange = cl::NDRange( ((m_widthDiv4 / localSize) + 1) * localSize );
-	m_globalRange = cl::NDRange( localGroups * localSize );
+	m_globalRange = cl::NDRange(  localWorkGroupSize * numLocalGroups );
 	
 	cout << "Local workgroup size: " << m_localRange[0] << endl;
 	cout << "Global workgroup size: " << m_globalRange[0] << endl;

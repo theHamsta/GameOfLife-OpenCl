@@ -13,11 +13,11 @@
 
 class Board {
 public:
-	Board(uint width, uint height, uint warpsPerGroup, uint localGroups);
+	Board(uint width, uint height, uint localWorkGroupSize, uint numLocalGroups);
 	Board(const Board& that) = delete;
 	~Board();
 	
-	void clear();
+	void resetData();
 	void fillRandomly();
 	void stepDeviceNaive();
 	void stepHost();
@@ -39,7 +39,7 @@ public:
 	
 private:
 	void init();
-	void initCl(uint warpsPerGroup, uint localGroups);
+	void initCl(uint localWorkGroupSize, uint numLocalGroups);
 	
 	size_t getDataBufferSize();
 	
