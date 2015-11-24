@@ -32,8 +32,8 @@ public:
 	
 	void stepDeviceOptimized();
 	
-	void startMeasurement();
-	ulong endMeasurement();
+	inline cl_ulong getTotalStepKernelTime() { return m_totalStepKernelTime; }
+	inline cl_ulong getTotalFixKernelTime() { return m_totalFixKernelTime; }
 	
 private:
 
@@ -77,8 +77,9 @@ private:
     cl::NDRange m_globalRange;
 	
 	bool m_bEnableProfiling;
-	cl::Event m_startEvent;
-	
+
+	cl_ulong m_totalStepKernelTime;
+	cl_ulong m_totalFixKernelTime;
 };
 
 

@@ -23,7 +23,9 @@ using namespace std;
 Board::Board(uint widthDiv4, uint heightDiv3, uint localWorkGroupSize, uint numLocalGroups, bool bEnableProfling):
 	m_widthDiv4(widthDiv4),
 	m_heightDiv3(heightDiv3),
-	m_bEnableProfiling(bEnableProfling)
+	m_bEnableProfiling(bEnableProfling),
+	m_totalStepKernelTime(0),
+	m_totalFixKernelTime(0)
 {
 	m_dataHost = new field_t[ this->getDataBufferSize() / sizeof(field_t) ];
 	
@@ -45,26 +47,8 @@ void Board::resetData()
 	m_bDataValidDevice = false;
 }
 
-void Board::startMeasurement()
-{
-	m_queue.enqueueBarrierWithWaitList(nullptr, &m_startEvent);
-}
 
-ulong Board::endMeasurement()
-{
-	assert( m_bEnableProfiling );
-	
-	cl::Event endEvent;
-	m_queue.enqueueBarrierWithWaitList(nullptr, &endEvent);
-	m_queue.finish();
-	m_startEvent.wait();
-	endEvent.wait();
-	cl_ulong start = m_startEvent.getProfilingInfo<CL_PROFILING_COMMAND_END>();
-	cl_ulong end = endEvent.getProfilingInfo<CL_PROFILING_COMMAND_START>();
-	
-	assert ( end > start );
-	return end - start;
-}
+
 
 
 void Board::initCl(uint localWorkGroupSize, uint numLocalGroups)
@@ -248,13 +232,16 @@ void Board::stepDeviceOptimized()
 		cl::Event evt;
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
 									m_globalRange, m_localRange , NULL, &evt);
-		evt.wait();
-		m_queue.finish();
-		cl_ulong start = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>();
-		cl_ulong end = evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+		if(m_bEnableProfiling) {
+			evt.wait();
+			m_queue.finish();
+			cl_ulong start = evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+			cl_ulong end = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+			m_totalStepKernelTime += end - start;
+		}
 	
- 	assert ( end > start );
-	cout << (end-start) * 10e-6 << endl;
+//  	assert ( end > start );
+// 	cout << (end-start) * 10e-9 << endl;
 		
 		fixOverlappingRegionsDevice();
 	} catch (cl::Error& err ) {
@@ -273,9 +260,17 @@ void Board::fixOverlappingRegionsDevice()
 		kernel.setArg( 1, m_dataUpperOverlappingRegionsDevice);
 		kernel.setArg( 2, m_dataLowerOverlappingRegionsDevice);
 
+		cl::Event evt;
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
-									m_globalRange, m_localRange );
+									m_globalRange, m_localRange, nullptr, &evt );
 
+		if(m_bEnableProfiling) {
+			evt.wait();
+			cl_ulong start = evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+			cl_ulong end = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+			m_totalFixKernelTime += end - start;
+		}
+		
 	} catch (cl::Error& err ) {
 		cout << "Failed to call kernel fixOverlappingRegions." << endl;
 		cout << "Error \"" << getOpenClErrorString(err.err()) << "\"";
