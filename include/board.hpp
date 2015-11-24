@@ -13,7 +13,7 @@
 
 class Board {
 public:
-	Board(uint width, uint height, uint localWorkGroupSize, uint numLocalGroups);
+	Board(uint width, uint height, uint localWorkGroupSize, uint numLocalGroups, bool bEnableProfiling);
 	Board(const Board& that) = delete;
 	~Board();
 	
@@ -37,8 +37,11 @@ public:
 	
 	void stepDeviceOptimized();
 	
+	void startMessurement();
+	ulong endMessurement();
+	
 private:
-	void init();
+
 	void initCl(uint localWorkGroupSize, uint numLocalGroups);
 	
 	size_t getDataBufferSize();
@@ -69,6 +72,10 @@ private:
 	cl::Program m_program;
     cl::NDRange m_localRange;
     cl::NDRange m_globalRange;
+	
+	bool m_bEnableProfiling;
+	cl::Event m_startEvent;
+	
 };
 
 

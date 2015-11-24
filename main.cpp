@@ -46,7 +46,7 @@ int main(int argc, char **argv) {
 		cout << "Usage: gameoflifecl NUM_ROUNDS BOARD_WIDTH*4 BOARD_HEIGHT*3 LOCAL_WORKGROUP_SIZE NUM_LOCAL_WORKGROUPS B_GRAPHICAL_OUTPUT[0 or 1]" << endl;
 		exit( EXIT_SUCCESS );
 	}
-	Board board(boardWidth, boardHeight, localWorkgroupSize, numLocalWorkgroups);
+	Board board(boardWidth, boardHeight, localWorkgroupSize, numLocalWorkgroups, true);
 	
 	board.fillRandomly();
 	board.uploadToDevice();
@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
 		board.debugPrintDeviceData(false);
 	}
 // 	board.print();
-	
+	board.startMessurement();
 	for(uint i = 0; i < numRounds; i++){
 		if (bGraphicalOutput){
 			clearScreen();
@@ -64,8 +64,8 @@ int main(int argc, char **argv) {
 		}
 		board.stepDeviceOptimized();
 		
-		board.updateFieldsHost();
-		board.broadcastNeighboursHost();
+// 		board.updateFieldsHost();
+// 		board.broadcastNeighboursHost();
 		
 
 		if(bGraphicalOutput){
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
 			cout << "Device: " << endl;
 			board.debugPrintDeviceData(false);
 		}
-		board.checkRelevantConsistency();
+// 		board.checkRelevantConsistency();
 
 
 
@@ -87,6 +87,7 @@ int main(int argc, char **argv) {
 // 		board.debugPrintDeviceData();
 
 	}
-	
+	long time = board.endMessurement();
+	cout << time << endl;
     return EXIT_SUCCESS;
 }

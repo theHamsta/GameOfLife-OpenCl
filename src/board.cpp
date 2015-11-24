@@ -20,9 +20,10 @@
 
 using namespace std;
 
-Board::Board(uint widthDiv4, uint heightDiv3, uint localWorkGroupSize, uint numLocalGroups):
+Board::Board(uint widthDiv4, uint heightDiv3, uint localWorkGroupSize, uint numLocalGroups, bool bEnableProfling):
 	m_widthDiv4(widthDiv4),
-	m_heightDiv3(heightDiv3)
+	m_heightDiv3(heightDiv3),
+	m_bEnableProfiling(bEnableProfling)
 {
 	m_dataHost = new field_t[ this->getDataBufferSize() / sizeof(field_t) ];
 	
@@ -42,6 +43,27 @@ void Board::resetData()
 
 	m_bDataValidHost = true;
 	m_bDataValidDevice = false;
+}
+
+void Board::startMessurement()
+{
+	m_queue.enqueueBarrierWithWaitList(nullptr, &m_startEvent);
+}
+
+ulong Board::endMessurement()
+{
+	assert( m_bEnableProfiling );
+	
+	cl::Event endEvent;
+	m_queue.enqueueBarrierWithWaitList(nullptr, &endEvent);
+	m_queue.finish();
+	m_startEvent.wait();
+	endEvent.wait();
+	cl_ulong start = m_startEvent.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+	cl_ulong end = endEvent.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+	
+	assert ( end > start );
+	return end - start;
 }
 
 
@@ -113,7 +135,11 @@ void Board::initCl(uint localWorkGroupSize, uint numLocalGroups)
 	
 	
     // Init queue
-    m_queue = cl::CommandQueue(m_context, m_device);
+	if(m_bEnableProfiling) {
+		m_queue = cl::CommandQueue(m_context, m_device, CL_QUEUE_PROFILING_ENABLE);
+	} else {
+		m_queue = cl::CommandQueue(m_context, m_device);
+	}
 
 	m_localRange = cl::NullRange;
     m_globalRange = cl::NullRange;
@@ -121,9 +147,6 @@ void Board::initCl(uint localWorkGroupSize, uint numLocalGroups)
 
 
 	// work group sizes
-	
-	
-	
 	
 	m_localRange = cl::NDRange(localWorkGroupSize);// m_kernels.begin()->second.getWorkGroupInfo<CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE>(m_device);
 
@@ -228,7 +251,6 @@ void Board::stepDeviceOptimized()
 									m_globalRange, m_localRange );
 
 		fixOverlappingRegionsDevice();
-		m_queue.enqueueBarrier();
 	} catch (cl::Error& err ) {
 		cout << "Failed to call kernel stepDevice." << endl;
 		cout << "Error \"" << getOpenClErrorString(err.err()) << "\"";
@@ -317,7 +339,7 @@ void Board::updateFieldsDevice()
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
 									m_globalRange, m_localRange );
-		m_queue.enqueueBarrier();
+		
 	} catch (cl::Error& err ) {
 		cout << "Failed to call kernel updateFieldsDevice." << endl;
 		cout << "Error \"" << getOpenClErrorString(err.err()) << "\"";
@@ -334,7 +356,6 @@ void Board::broadcastNeighboursDevice()
 
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
 									m_globalRange, m_localRange );
-		m_queue.enqueueBarrier();
 	} catch (cl::Error& err ) {
 		cout << "Failed to call kernel broadcastNeighbourhoodsDevice." << endl;
 		cout << "Error \"" << getOpenClErrorString(err.err()) << "\"";
@@ -394,7 +415,6 @@ size_t Board::getDataBufferSize()
 void Board::uploadToDevice()
 {
 	assert( m_bDataValidHost );
-	
 	m_queue.enqueueWriteBuffer( m_dataDevice, CL_TRUE,
                                ZERO_OFFSET, getDataBufferSize(), m_dataHost );
 	
