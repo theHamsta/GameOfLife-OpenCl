@@ -45,12 +45,12 @@ void Board::resetData()
 	m_bDataValidDevice = false;
 }
 
-void Board::startMessurement()
+void Board::startMeasurement()
 {
 	m_queue.enqueueBarrierWithWaitList(nullptr, &m_startEvent);
 }
 
-ulong Board::endMessurement()
+ulong Board::endMeasurement()
 {
 	assert( m_bEnableProfiling );
 	
@@ -90,25 +90,22 @@ void Board::initCl(uint localWorkGroupSize, uint numLocalGroups)
     kernelSources.push_back(header + field_h + source);
 
     // Setup OpenCL
-#if defined(DEBUG_MODE)
+// #if defined(DEBUG_MODE)
     cl::Platform platform = clSetup.selectPlatform();
 
     m_context = clSetup.createContext(platform);
     m_device = clSetup.selectDevice(m_context);
-#else
-    cl::Platform platform = clSetup.getPlatforms()[0];
-
-    mContext = clSetup.createContext(platform);
-    mDevice = clSetup.getDevices(mContext)[0];
-#endif // DEBUG_MODE
+// #else
+//     cl::Platform platform = clSetup.getPlatforms()[0];
+// 
+//     mContext = clSetup.createContext(platform);
+//     mDevice = clSetup.getDevices(mContext)[0];
+// #endif // DEBUG_MODE
 	
 	
     // Add compile time flags to opencl program
     stringstream compileTimeFlags;
 	
-#if defined(USE_DOUBLE_PRECISION)
-    compileTimeFlags << " -DUSE_DOUBLE_PRECISION ";
-#endif // USE_DOUBLE_PRECISION
 
 #if defined(DEBUG_MODE)
     compileTimeFlags << " -DDEBUG_MODE ";
@@ -228,6 +225,7 @@ void Board::stepHost()
 
 void Board::stepDeviceNaive()
 {
+	assert( false && "obsolete! workgroup sizes are now adapted to optimized kernel!" );
 	this->updateFieldsDevice();
 	this->broadcastNeighboursDevice();
 	
@@ -246,10 +244,18 @@ void Board::stepDeviceOptimized()
 		kernel.setArg( 2, m_dataLowerOverlappingRegionsDevice);
 		kernel.setArg( 3, (m_localRange[0] + 2) * 3 * sizeof(field_t), NULL);
 		kernel.setArg( 4, (blockHeight + 2) * sizeof(field_t) , NULL);
-
+		
+		cl::Event evt;
 		m_queue.enqueueNDRangeKernel(kernel, ZERO_OFFSET_RANGE,
-									m_globalRange, m_localRange );
-
+									m_globalRange, m_localRange , NULL, &evt);
+		evt.wait();
+		m_queue.finish();
+		cl_ulong start = evt.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+		cl_ulong end = evt.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+	
+ 	assert ( end > start );
+	cout << (end-start) * 10e-6 << endl;
+		
 		fixOverlappingRegionsDevice();
 	} catch (cl::Error& err ) {
 		cout << "Failed to call kernel stepDevice." << endl;
@@ -282,6 +288,7 @@ void Board::fixOverlappingRegionsDevice()
 
 void Board::broadcastNeighboursHost()
 {
+	
 	field_t* above = m_dataHost + BOARD_PADDING_X;
 	field_t* current = BOARD_PTR_FIRST_FIELD;
 	field_t* below = current + BOARD_LINE_SKIP;
@@ -329,6 +336,7 @@ void Board::updateFieldsHost()
 
 void Board::updateFieldsDevice()
 {
+	assert( false && "obsolete! workgroup sizes are now adapted to optimized kernel!" );
 // 	if( !m_bDataValidDevice ) {
 // 		this->uploadToDevice();
 // 	}
@@ -350,6 +358,7 @@ void Board::updateFieldsDevice()
 
 void Board::broadcastNeighboursDevice()
 {
+	assert( false && "obsolete! workgroup sizes are now adapted to optimized kernel!" );
 	cl::Kernel &kernel = m_kernels[ "broadcastNeighbourhoodsDevice" ];
 	try {
 		kernel.setArg( 0, m_dataDevice );

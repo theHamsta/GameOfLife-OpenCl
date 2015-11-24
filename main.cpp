@@ -23,9 +23,9 @@ int main(int argc, char **argv) {
 	uint numLocalWorkgroups;
 	uint numRounds;
 	bool bGraphicalOutput;
-
+	bool bCheckCorrectness;
 	
-	if ( argc == 7 ) {
+	if ( argc == 8 ) {
 		try{
 			numRounds = stoi(argv[1]);
 			boardWidth = stoi(argv[2]);
@@ -33,17 +33,19 @@ int main(int argc, char **argv) {
 			localWorkgroupSize = stoi(argv[4]);
 			numLocalWorkgroups = stoi(argv[5]);
 			bGraphicalOutput = stoi(argv[6]);
+			bCheckCorrectness = stoi(argv[7]);
 			cout << "boardWidth: " << boardWidth << endl;
 			cout << "boardHeight: " << boardHeight << endl;
 			cout << "localWorkgroupSize: " << localWorkgroupSize << endl;
 			cout << "numLocalWorkgroups: " << numLocalWorkgroups << endl;
 			cout << "bGraphicalOutput: " << bGraphicalOutput << endl;
+			cout << "bCheckCorrectness: " << bGraphicalOutput << endl;
 		} catch (exception& err){
 			cout << "Error parsing arguments" << endl;
 			exit( EXIT_FAILURE );
 		}
 	} else {
-		cout << "Usage: gameoflifecl NUM_ROUNDS BOARD_WIDTH*4 BOARD_HEIGHT*3 LOCAL_WORKGROUP_SIZE NUM_LOCAL_WORKGROUPS B_GRAPHICAL_OUTPUT[0 or 1]" << endl;
+		cout << "Usage: gameoflifecl NUM_ROUNDS BOARD_WIDTH*4 BOARD_HEIGHT*3 LOCAL_WORKGROUP_SIZE NUM_LOCAL_WORKGROUPS B_GRAPHICAL_OUTPUT[0 or 1] B_CHECK_CORRECTNESS[0 or 1]" << endl;
 		exit( EXIT_SUCCESS );
 	}
 	Board board(boardWidth, boardHeight, localWorkgroupSize, numLocalWorkgroups, true);
@@ -55,28 +57,30 @@ int main(int argc, char **argv) {
 		board.print(false);
 		board.debugPrintDeviceData(false);
 	}
-// 	board.print();
-	board.startMessurement();
+
+// 	board.startMeasurement();
 	for(uint i = 0; i < numRounds; i++){
 		if (bGraphicalOutput){
 			clearScreen();
 			this_thread::sleep_for(chrono::milliseconds(100));
 		}
 		board.stepDeviceOptimized();
-		
-// 		board.updateFieldsHost();
-// 		board.broadcastNeighboursHost();
-		
+		if(bCheckCorrectness) {
+			board.stepHost();
+		}
 
 		if(bGraphicalOutput){
 			cout << "Round: " << (i+1) << " of " << numRounds << endl;
-			cout << "Host: " << endl;
-			board.print(false);
+			if(bCheckCorrectness) {
+				cout << "Host: " << endl;
+				board.print(false);
+			}
 			cout << "Device: " << endl;
 			board.debugPrintDeviceData(false);
 		}
-// 		board.checkRelevantConsistency();
-
+		if( bCheckCorrectness ){
+			board.checkRelevantConsistency();
+		}
 
 
 
@@ -87,7 +91,7 @@ int main(int argc, char **argv) {
 // 		board.debugPrintDeviceData();
 
 	}
-	long time = board.endMessurement();
-	cout << time << endl;
+// 	long time = board.endMeasurement();
+// 	cout << time << endl;
     return EXIT_SUCCESS;
 }

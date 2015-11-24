@@ -19,30 +19,33 @@ public:
 	
 	void resetData();
 	void fillRandomly();
-	void stepDeviceNaive();
+
 	void stepHost();
 	void print(bool bWithNeighbourBits);
 	void debugPrintDeviceData(bool bWithNeighbourBits);
 	void checkConsistency();
 	void checkRelevantConsistency();
 	
-	void updateFieldsDevice();
-	void broadcastNeighboursDevice();
-	
-	void updateFieldsHost();
-	void broadcastNeighboursHost();
 	
 	void uploadToDevice();
 	void downloadFromDevice();
 	
 	void stepDeviceOptimized();
 	
-	void startMessurement();
-	ulong endMessurement();
+	void startMeasurement();
+	ulong endMeasurement();
 	
 private:
 
+	
 	void initCl(uint localWorkGroupSize, uint numLocalGroups);
+	
+	void updateFieldsHost();
+	void broadcastNeighboursHost();
+	
+	void stepDeviceNaive();
+	void updateFieldsDevice();
+	void broadcastNeighboursDevice();
 	
 	size_t getDataBufferSize();
 	
